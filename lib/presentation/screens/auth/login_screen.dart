@@ -87,14 +87,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'INICIAR SESIÓN',
-                            style: SysQuestTypography.h2.copyWith(
-                              color: SysQuestColors.gold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
                             'Continúa tu aventura técnica.',
                             style: SysQuestTypography.caption.copyWith(
                               color: SysQuestColors.parchmentText
@@ -216,45 +208,52 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 14),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _BotonOAuth(
-                                icono: Icons.g_mobiledata,
-                                label: 'Google',
-                                color: const Color(0xFFEA4335),
-                                onTap: () => DialogoAlertaSysQuest.mostrar(
-                                  context,
-                                  titulo: 'AUTENTICACIÓN GOOGLE',
-                                  mensaje:
-                                      'Redireccionando al portal seguro de Google OAuth. Configura tu Client ID en el panel docente para acceso instantáneo.',
-                                  icono: Icons.mail_outline,
-                                  colorPrimario: const Color(0xFFEA4335),
+                              Expanded(
+                                child: _BotonOAuth(
+                                  brandLetter: 'G',
+                                  label: 'GGL',
+                                  brandColor: const Color(0xFFEA4335),
+                                  onTap: () => DialogoAlertaSysQuest.mostrar(
+                                    context,
+                                    titulo: 'AUTENTICACIÓN GOOGLE',
+                                    mensaje:
+                                        'Redireccionando al portal seguro de Google OAuth. Configura tu Client ID en el panel docente para acceso instantáneo.',
+                                    icono: Icons.mail_outline,
+                                    colorPrimario: const Color(0xFFEA4335),
+                                  ),
                                 ),
                               ),
-                              _BotonOAuth(
-                                icono: Icons.window,
-                                label: 'Outlook',
-                                color: const Color(0xFF0078D4),
-                                onTap: () => DialogoAlertaSysQuest.mostrar(
-                                  context,
-                                  titulo: 'AUTENTICACIÓN OUTLOOK',
-                                  mensaje:
-                                      'Conexión con cuenta institucional Microsoft / Outlook lista para enlazar con Supabase Auth.',
-                                  icono: Icons.business,
-                                  colorPrimario: const Color(0xFF0078D4),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _BotonOAuth(
+                                  brandLetter: 'M',
+                                  label: 'OUT',
+                                  brandColor: const Color(0xFF0078D4),
+                                  onTap: () => DialogoAlertaSysQuest.mostrar(
+                                    context,
+                                    titulo: 'AUTENTICACIÓN OUTLOOK',
+                                    mensaje:
+                                        'Conexión con cuenta institucional Microsoft / Outlook lista para enlazar con Supabase Auth.',
+                                    icono: Icons.business,
+                                    colorPrimario: const Color(0xFF0078D4),
+                                  ),
                                 ),
                               ),
-                              _BotonOAuth(
-                                icono: Icons.facebook,
-                                label: 'Facebook',
-                                color: const Color(0xFF1877F2),
-                                onTap: () => DialogoAlertaSysQuest.mostrar(
-                                  context,
-                                  titulo: 'AUTENTICACIÓN FACEBOOK',
-                                  mensaje:
-                                      'Módulo de inicio de sesión con Meta / Facebook disponible para vincular a tu perfil de aventurero.',
-                                  icono: Icons.facebook,
-                                  colorPrimario: const Color(0xFF1877F2),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _BotonOAuth(
+                                  brandLetter: 'F',
+                                  label: 'FBK',
+                                  brandColor: const Color(0xFF1877F2),
+                                  onTap: () => DialogoAlertaSysQuest.mostrar(
+                                    context,
+                                    titulo: 'AUTENTICACIÓN FACEBOOK',
+                                    mensaje:
+                                        'Módulo de inicio de sesión con Meta / Facebook disponible para vincular a tu perfil de aventurero.',
+                                    icono: Icons.facebook,
+                                    colorPrimario: const Color(0xFF1877F2),
+                                  ),
                                 ),
                               ),
                             ],
@@ -322,7 +321,28 @@ class _SysQuestLogo extends StatelessWidget {
           'SYSQUEST',
           style: SysQuestTypography.h1.copyWith(
             color: SysQuestColors.gold,
-            letterSpacing: 3.0,
+            letterSpacing: 4.0,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: SysQuestColors.dungeonVoid,
+            border: Border.all(
+              color: SysQuestColors.manaCyan,
+              width: 2,
+            ),
+          ),
+          child: Text(
+            'INICIAR SESIÓN',
+            style: SysQuestTypography.caption.copyWith(
+              color: SysQuestColors.gold,
+              fontSize: 10,
+              letterSpacing: 2.0,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],
@@ -364,15 +384,15 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 class _BotonOAuth extends StatefulWidget {
-  final IconData icono;
+  final String brandLetter;
   final String label;
-  final Color color;
+  final Color brandColor;
   final VoidCallback onTap;
 
   const _BotonOAuth({
-    required this.icono,
+    required this.brandLetter,
     required this.label,
-    required this.color,
+    required this.brandColor,
     required this.onTap,
   });
 
@@ -396,10 +416,13 @@ class _BotonOAuthState extends State<_BotonOAuth> {
         duration: const Duration(milliseconds: 60),
         margin:
             EdgeInsets.only(top: _pressed ? 3 : 0, bottom: _pressed ? 0 : 3),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         decoration: BoxDecoration(
           color: SysQuestColors.stonePanel,
-          border: Border.all(color: SysQuestColors.borderBlack, width: 2),
+          border: Border.all(
+            color: widget.brandColor,
+            width: 2.5,
+          ),
           boxShadow: _pressed
               ? null
               : const [
@@ -409,33 +432,37 @@ class _BotonOAuthState extends State<_BotonOAuth> {
                   ),
                 ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: SysQuestColors.dungeonVoid,
-                border: Border.all(color: widget.color, width: 2),
-              ),
-              child: Center(
-                child: Icon(
-                  widget.icono,
-                  color: widget.color,
-                  size: 14,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                color: widget.brandColor,
+                alignment: Alignment.center,
+                child: Text(
+                  widget.brandLetter,
+                  style: const TextStyle(
+                    fontFamily: 'PressStart2P',
+                    fontSize: 9,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              widget.label.toUpperCase(),
-              style: SysQuestTypography.caption.copyWith(
-                color: SysQuestColors.parchmentText,
-                fontSize: 8,
+              const SizedBox(width: 5),
+              Text(
+                widget.label,
+                style: SysQuestTypography.caption.copyWith(
+                  color: SysQuestColors.parchmentText,
+                  fontSize: 8,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
