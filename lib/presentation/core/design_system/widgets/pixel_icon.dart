@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 class PixelIcon extends StatelessWidget {
   final String fileName;
   final double size;
+  final double? width;
+  final double? height;
   final Color? color;
 
   const PixelIcon({
     super.key,
     required this.fileName,
     this.size = 24.0,
+    this.width,
+    this.height,
     this.color,
   });
 
@@ -21,19 +25,22 @@ class PixelIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveWidth = width ?? size;
+    final effectiveHeight = height ?? size;
+
     return SizedBox(
-      width: size,
-      height: size,
+      width: effectiveWidth,
+      height: effectiveHeight,
       child: Image.asset(
         _resolveAssetPath(fileName),
-        width: size,
-        height: size,
+        width: effectiveWidth,
+        height: effectiveHeight,
         fit: BoxFit.contain,
         filterQuality: FilterQuality.none,
         color: color,
         errorBuilder: (_, _, _) => Icon(
           Icons.broken_image,
-          size: size,
+          size: effectiveWidth < effectiveHeight ? effectiveWidth : effectiveHeight,
           color: color,
         ),
       ),

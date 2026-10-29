@@ -493,7 +493,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         children: [
           const Positioned.fill(
             child: DungeonMenuBackdrop(
-              isDoorOpen: false,
+              preset: ScenePreset.heroArmory,
             ),
           ),
           Positioned.fill(

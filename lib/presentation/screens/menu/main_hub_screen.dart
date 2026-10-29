@@ -58,6 +58,19 @@ class _MainHubScreenState extends State<MainHubScreen> {
     }
   }
 
+  ScenePreset get _currentPreset {
+    switch (_currentIndex) {
+      case 0:
+        return ScenePreset.guildHall;
+      case 1:
+        return ScenePreset.arcaneCodex;
+      case 2:
+        return ScenePreset.heroArmory;
+      default:
+        return ScenePreset.guildHall;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,10 +82,14 @@ class _MainHubScreenState extends State<MainHubScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // UN solo DungeonMenuBackdrop (Positioned.fill, sin SafeArea)
-          const Positioned.fill(
-            child: DungeonMenuBackdrop(
-              isDoorOpen: false,
+          // DungeonMenuBackdrop animado con el escenario propio de cada pestaña
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: DungeonMenuBackdrop(
+                key: ValueKey<ScenePreset>(_currentPreset),
+                preset: _currentPreset,
+              ),
             ),
           ),
           // IndexedStack con las 3 vistas en primer plano

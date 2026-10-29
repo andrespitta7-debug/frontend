@@ -123,6 +123,23 @@ void main() {
       expect(find.text('Héroe'), findsOneWidget);
       expect(find.text('Menú Principal'), findsOneWidget);
     });
+
+    testWidgets('renderiza los 4 presets de escenario sin errores', (tester) async {
+      for (final preset in ScenePreset.values) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: DungeonMenuBackdrop(
+                preset: preset,
+                child: Text('Preset: ${preset.name}'),
+              ),
+            ),
+          ),
+        );
+        expect(find.text('Preset: ${preset.name}'), findsOneWidget);
+        expect(find.byType(DungeonMenuBackdrop), findsOneWidget);
+      }
+    });
   });
 
   group('Design System - RetroPageRoute', () {

@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           const Positioned.fill(
             child: DungeonMenuBackdrop(
-              isDoorOpen: false,
+              preset: ScenePreset.loginGate,
             ),
           ),
           Positioned.fill(

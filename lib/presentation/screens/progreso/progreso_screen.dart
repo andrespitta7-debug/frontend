@@ -163,7 +163,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
         children: [
           const Positioned.fill(
             child: DungeonMenuBackdrop(
-              isDoorOpen: false,
+              preset: ScenePreset.arcaneCodex,
             ),
           ),
           Positioned.fill(
