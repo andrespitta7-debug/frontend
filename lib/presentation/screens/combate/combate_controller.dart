@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -6,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../domain/entities/encuentro.dart';
 import '../../../domain/entities/opcion_encuentro.dart';
 import '../../../domain/entities/personaje_partida.dart';
+import '../../../domain/entities/roguelite_perk.dart';
 import '../../../domain/repositories/quest_repository.dart';
 import '../../../domain/usecases/finalizar_partida_usecase.dart';
 import '../../../domain/usecases/generar_encuentros_extra_usecase.dart';
@@ -85,7 +87,14 @@ class CombateController extends ChangeNotifier {
   String _temaQuest = '';
   String _categoriaQuest = '';
   String _dificultadQuest = 'facil';
+  String _questTitle = 'Incursión en la Mazmorra';
+  String _resolvedTopic = 'Conocimiento Arcano';
   late Partida _partida;
+
+  final List<RoguelitePerk> _activePerks = [];
+  List<RoguelitePerk> get activePerks => List.unmodifiable(_activePerks);
+  List<RoguelitePerk>? perksParaElegir;
+  String armaEquipada = 'weapon_knight_sword.png';
 
   int vidaJugador = 100;
   int vidaEnemigo = 30;
@@ -115,6 +124,29 @@ class CombateController extends ChangeNotifier {
   String get temaQuest => _temaQuest;
   String get categoriaQuest => _categoriaQuest;
   String get dificultadQuest => _dificultadQuest;
+  String get questTitle => _questTitle;
+  String get resolvedTopic => _resolvedTopic;
+
+  void seleccionarPerk(RoguelitePerk perk) {
+    _activePerks.add(perk);
+    if (perk.weaponSprite != null) {
+      armaEquipada = perk.weaponSprite!;
+    }
+    if (perk.id == 'alchemical_refill') {
+      _wildcards[TipoWildcard.pista] = (_wildcards[TipoWildcard.pista] ?? 0) + 1;
+      _wildcards[TipoWildcard.cincuentaCincuenta] = (_wildcards[TipoWildcard.cincuentaCincuenta] ?? 0) + 1;
+      _agregarNarrativa(
+        '[PERK] 🧪 ¡Recarga Alquímica restauró tus comodines!',
+        tipo: BattleLogType.oracleHint,
+      );
+    }
+    _agregarNarrativa(
+      '[MEJORA] ⭐ Adquiriste: ${perk.nombre} (${perk.descripcion})',
+      tipo: BattleLogType.healOrBuff,
+    );
+    perksParaElegir = null;
+    notifyListeners();
+  }
 
   bool get ganoCombate => jugadorGano;
   int get puntosPorEnemigos => _enemigosDerrotados * 100;
@@ -266,6 +298,8 @@ class CombateController extends ChangeNotifier {
     String temaQuest = '',
     String categoriaQuest = '',
     String dificultadQuest = '',
+    String questTitle = 'Incursión en la Mazmorra',
+    String resolvedTopic = 'Conocimiento Arcano',
   }) async {
     cargando = true;
     combateTerminado = false;
@@ -285,6 +319,12 @@ class CombateController extends ChangeNotifier {
     eventoActualVisual = null;
     _historialNarrativo.clear();
     turnoEnProceso = false;
+
+    _activePerks.clear();
+    perksParaElegir = null;
+    armaEquipada = 'weapon_knight_sword.png';
+    _questTitle = questTitle.trim().isNotEmpty ? questTitle.trim() : 'Incursión en la Mazmorra';
+    _resolvedTopic = resolvedTopic.trim().isNotEmpty ? resolvedTopic.trim() : 'Conocimiento Arcano';
 
     _wildcards.clear();
     for (final tipo in TipoWildcard.values) {
@@ -342,6 +382,8 @@ class CombateController extends ChangeNotifier {
       idPartida: _uuid.v4(),
       idUsuario: idUsuario,
       idQuest: idQuest,
+      questTitle: _questTitle,
+      resolvedTopic: _resolvedTopic,
     );
 
     _setMensajeNarrativo(_consumirFragmentoNarrativo('intro'));
@@ -392,19 +434,45 @@ class CombateController extends ChangeNotifier {
     if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _modoTemerarioActivo) {
       danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.3).round();
     }
+    // Perk: Crimson Edge (+35% de daño al acertar)
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'crimson_edge')) {
+      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.35).round();
+    }
+    // Perk: Compile Frenzy (+25% de daño y aceleración)
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'compile_frenzy')) {
+      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.25).round();
+    }
     // Multiplicador de golpe doble (wildcard)
     if (aplicaGolpeDoble && resultado.danoAlEnemigo > 0) {
       danioAlEnemigoFinal *= 2;
     }
 
-    final danioAlJugadorFinal = resultado.danoAlJugador +
+    var danioAlJugadorFinal = resultado.danoAlJugador +
         (_modoTemerarioActivo && resultado.danoAlJugador > 0 ? 5 : 0);
+    // Perk: Dwarven Armor (Reduce un 40% el daño recibido al fallar)
+    if (danioAlJugadorFinal > 0 && _activePerks.any((p) => p.id == 'dwarven_armor')) {
+      final mitigado = (danioAlJugadorFinal * 0.40).round();
+      danioAlJugadorFinal = math.max(1, danioAlJugadorFinal - mitigado);
+      _agregarNarrativa(
+        '[PERK] 🛡️ ¡Armadura Enana mitigó -$mitigado de daño!',
+        tipo: BattleLogType.healOrBuff,
+      );
+    }
 
     vidaEnemigo = (vidaEnemigo - danioAlEnemigoFinal).clamp(0, 999);
     vidaJugador = (vidaJugador - danioAlJugadorFinal).clamp(0, 999);
 
     if (aplicaRoboDeVida && esAciertoOCritico) {
       vidaJugador = (vidaJugador + 10).clamp(0, 100);
+    }
+
+    // Perk: Academic Vampirism (+8 HP al acertar)
+    if (esAciertoOCritico && _activePerks.any((p) => p.id == 'academic_vampirism')) {
+      vidaJugador = (vidaJugador + 8).clamp(0, 100);
+      _agregarNarrativa(
+        '[PERK] 🩸 ¡Vampirismo Académico absorbió +8 HP! (Vida: $vidaJugador/100)',
+        tipo: BattleLogType.healOrBuff,
+      );
     }
 
     final nombreEnemigo = (encuentroActual?.enemigo?.isNotEmpty == true) ? encuentroActual!.enemigo! : 'El enemigo';
@@ -501,6 +569,9 @@ class CombateController extends ChangeNotifier {
       final hayMasEncuentros = _indiceActual + 1 < _encuentros.length;
       if (hayMasEncuentros) {
         encuentroSuperado = true;
+        // Ofrecer 3 mejoras aleatorias estilo Vampire Survivors
+        final perksDisponibles = List<RoguelitePerk>.from(RoguelitePerk.allPerks)..shuffle();
+        perksParaElegir = perksDisponibles.take(3).toList();
         if (_enemigosDerrotados % 3 != 0) {
           final caso = _enemigosDerrotados % 3;
           if (caso == 1) {

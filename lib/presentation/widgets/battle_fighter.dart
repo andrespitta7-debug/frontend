@@ -11,6 +11,7 @@ class BattleFighterWidget extends StatefulWidget {
   final String? weaponSprite;
   final bool isEnemy;
   final double scale;
+  final bool forceRun;
 
   const BattleFighterWidget({
     super.key,
@@ -18,6 +19,7 @@ class BattleFighterWidget extends StatefulWidget {
     this.weaponSprite,
     this.isEnemy = false,
     this.scale = 1.0,
+    this.forceRun = false,
   });
 
   @override
@@ -165,10 +167,10 @@ class BattleFighterWidgetState extends State<BattleFighterWidget>
 
   @override
   Widget build(BuildContext context) {
-    final activeAnim =
-        (_isAttacking && _runAnimation != null) ? _runAnimation : _idleAnimation;
-    final activeTicker =
-        (_isAttacking && _runTicker != null) ? _runTicker : _idleTicker;
+    final bool useRun =
+        (_isAttacking || widget.forceRun) && _runAnimation != null;
+    final activeAnim = useRun ? _runAnimation : _idleAnimation;
+    final activeTicker = useRun ? _runTicker : _idleTicker;
 
     return AnimatedBuilder(
       animation: _attackController,
@@ -181,46 +183,54 @@ class BattleFighterWidgetState extends State<BattleFighterWidget>
             1.0,
           )..setTranslationRaw(_lungeAnimation.value, 0.0, 0.0),
           child: SizedBox(
-            width: 64,
-            height: 64,
+            width: 48,
+            height: 68,
             child: Stack(
               clipBehavior: Clip.none,
-              alignment: Alignment.center,
+              alignment: Alignment.bottomCenter,
               children: [
-                // Sprite animado del personaje
-                if (activeAnim != null && activeTicker != null)
-                  SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: SpriteAnimationWidget(
-                      animation: activeAnim,
-                      animationTicker: activeTicker,
-                    ),
-                  )
-                else
-                  Image.asset(
-                    'assets/sprites/frames/${widget.characterPrefix}_idle_anim_f0.png',
-                    scale: 0.25,
-                    filterQuality: FilterQuality.none,
-                    errorBuilder: (_, _, _) => Text(
-                      widget.isEnemy ? '👾' : '🧙',
-                      style: const TextStyle(fontSize: 32),
-                    ),
+                // Contenedor del personaje con FittedBox(fit: BoxFit.contain)
+                Positioned.fill(
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: activeAnim != null && activeTicker != null
+                        ? SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: SpriteAnimationWidget(
+                              animation: activeAnim,
+                              animationTicker: activeTicker,
+                            ),
+                          )
+                        : Image.asset(
+                            'assets/sprites/frames/${widget.characterPrefix}_idle_anim_f0.png',
+                            scale: 0.25,
+                            filterQuality: FilterQuality.none,
+                            errorBuilder: (_, _, _) => Text(
+                              widget.isEnemy ? '👾' : '🧙',
+                              style: const TextStyle(fontSize: 32),
+                            ),
+                          ),
                   ),
+                ),
 
-                // Arma equipada con giro de impacto
+                // Arma equipada en SizedBox(width: 18, height: 34) con BoxFit.contain y FilterQuality.none, right: 0, bottom: 8
                 if (widget.weaponSprite != null)
                   Positioned(
-                    right: 4,
-                    bottom: 12,
+                    right: 0,
+                    bottom: 8,
                     child: Transform.rotate(
                       angle: _swordAnimation.value,
                       alignment: Alignment.bottomLeft,
-                      child: Image.asset(
-                        'assets/sprites/frames/${widget.weaponSprite}',
-                        scale: 0.25,
-                        filterQuality: FilterQuality.none,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      child: SizedBox(
+                        width: 18,
+                        height: 34,
+                        child: Image.asset(
+                          'assets/sprites/frames/${widget.weaponSprite}',
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.none,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),

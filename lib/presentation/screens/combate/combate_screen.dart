@@ -10,6 +10,8 @@ import '../../../domain/usecases/responder_encuentro_usecase.dart';
 import '../../../domain/entities/quest_completa.dart';
 import '../../../domain/entities/wildcard.dart';
 import '../../../domain/entities/visual_scene.dart';
+import '../../../domain/entities/roguelite_perk.dart';
+import '../../utils/local_dungeon_narrator.dart';
 import '../../theme/app_theme.dart';
 import '../generar/generar_quest_screen.dart';
 import '../progreso/progreso_screen.dart';
@@ -22,6 +24,12 @@ import '../../core/design_system/widgets/pixel_icon.dart';
 import '../../core/design_system/widgets/retro_panel_box.dart';
 import '../../core/design_system/widgets/retro_pixel_button.dart';
 import '../../core/design_system/utils/text_sanitizer.dart';
+
+enum ArenaPhase {
+  portalDropIntro,
+  walkingCorridor,
+  combatActive,
+}
 
 class CombateScreen extends StatefulWidget {
   final String idQuest;
@@ -43,6 +51,13 @@ class CombateScreen extends StatefulWidget {
 
 class _CombateScreenState extends State<CombateScreen>
     with TickerProviderStateMixin {
+  ArenaPhase _arenaPhase = ArenaPhase.portalDropIntro;
+  String _walkingSpeech = 'Avanzas con cautela por el pasillo de piedra húmeda...';
+  late final AnimationController _portalDropController;
+  late final Animation<double> _portalDropAnimation;
+  late final AnimationController _corridorScrollController;
+  Timer? _arenaPhaseTimer;
+
   CombateController? _controller;
   ResultadoCombate? _resultadoMostrado;
   int? _danioEnemigoVisible;
@@ -80,6 +95,24 @@ class _CombateScreenState extends State<CombateScreen>
       vsync: this,
       duration: const Duration(milliseconds: 520),
     );
+    _portalDropController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _portalDropAnimation = Tween<double>(begin: -50.0, end: 80.0).animate(
+      CurvedAnimation(parent: _portalDropController, curve: Curves.bounceOut),
+    );
+    _corridorScrollController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _portalDropController.forward();
+    _arenaPhaseTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        _iniciarWalkingCorridor();
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = context.read<CombateController>();
       controller.addListener(_detectarCambioDeEstado);
@@ -93,7 +126,27 @@ class _CombateScreenState extends State<CombateScreen>
         temaQuest: widget.questCompleta?.quest.tema ?? '',
         categoriaQuest: widget.categoriaQuest ?? widget.questCompleta?.quest.categoria ?? '',
         dificultadQuest: widget.questCompleta?.quest.dificultad ?? '',
+        questTitle: widget.questCompleta?.questTitle ?? 'Incursión en la Mazmorra',
+        resolvedTopic: widget.questCompleta?.resolvedTopic ?? 'Conocimiento Arcano',
       );
+    });
+  }
+
+  void _iniciarWalkingCorridor() {
+    if (!mounted) return;
+    setState(() {
+      _arenaPhase = ArenaPhase.walkingCorridor;
+      _walkingSpeech = LocalDungeonNarrator.getWalkingText();
+    });
+    _corridorScrollController.repeat();
+    _arenaPhaseTimer?.cancel();
+    _arenaPhaseTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (mounted) {
+        _corridorScrollController.stop();
+        setState(() {
+          _arenaPhase = ArenaPhase.combatActive;
+        });
+      }
     });
   }
 
@@ -181,6 +234,9 @@ class _CombateScreenState extends State<CombateScreen>
 
   @override
   void dispose() {
+    _arenaPhaseTimer?.cancel();
+    _portalDropController.dispose();
+    _corridorScrollController.dispose();
     _hitFeedbackTimer?.cancel();
     _ocultarDanioEnemigo?.cancel();
     _ocultarDanioJugador?.cancel();
@@ -266,7 +322,11 @@ class _CombateScreenState extends State<CombateScreen>
           }
 
           return AnimatedBuilder(
-            animation: _sacudidaPantalla,
+            animation: Listenable.merge([
+              _sacudidaPantalla,
+              _portalDropController,
+              _corridorScrollController,
+            ]),
             builder: (context, child) {
               final desplazamiento =
                   math.sin(_sacudidaPantalla.value * math.pi * 12) * _sacudidaAmplitud;
@@ -292,8 +352,17 @@ class _CombateScreenState extends State<CombateScreen>
               danioJugadorKey: _danioJugadorKey,
               temblorEnemigo: _temblorEnemigo,
               destelloCritico: _destelloCritico,
+              arenaPhase: _arenaPhase,
+              portalDropTop: _portalDropAnimation.value,
+              scrollOffset: _corridorScrollController.value * 64.0,
+              walkingSpeech: _walkingSpeech,
+              questCompleta: widget.questCompleta,
+              onPerkSeleccionado: _iniciarWalkingCorridor,
               onElegirOpcion: controller.elegirOpcion,
-              onContinuar: controller.continuarSiguienteEncuentro,
+              onContinuar: () {
+                controller.continuarSiguienteEncuentro();
+                _iniciarWalkingCorridor();
+              },
               onVolverAJugar: _volverAJugar,
               onCambiarTema: _jugarConOtroTema,
               onVerProgreso: _verProgreso,
@@ -303,6 +372,7 @@ class _CombateScreenState extends State<CombateScreen>
                 });
                 if (controller.encuentroSuperado) {
                   controller.continuarSiguienteEncuentro();
+                  _iniciarWalkingCorridor();
                 }
               },
             ),
@@ -454,6 +524,12 @@ class _CombateContenido extends StatelessWidget {
   final int danioJugadorKey;
   final AnimationController temblorEnemigo;
   final AnimationController destelloCritico;
+  final ArenaPhase arenaPhase;
+  final double portalDropTop;
+  final double scrollOffset;
+  final String walkingSpeech;
+  final QuestCompleta? questCompleta;
+  final VoidCallback onPerkSeleccionado;
   final ValueChanged<OpcionEncuentro> onElegirOpcion;
   final VoidCallback onContinuar;
   final VoidCallback onVolverAJugar;
@@ -476,6 +552,12 @@ class _CombateContenido extends StatelessWidget {
     required this.danioJugadorKey,
     required this.temblorEnemigo,
     required this.destelloCritico,
+    required this.arenaPhase,
+    required this.portalDropTop,
+    required this.scrollOffset,
+    required this.walkingSpeech,
+    required this.questCompleta,
+    required this.onPerkSeleccionado,
     required this.onElegirOpcion,
     required this.onContinuar,
     required this.onVolverAJugar,
@@ -640,8 +722,20 @@ class _CombateContenido extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (controller.mensajeNarrativoActual != null) {
+    if (controller.perksParaElegir != null && controller.perksParaElegir!.isNotEmpty) {
       return SafeArea(
+        top: false,
+        child: _DialogoEleccionPerks(
+          perks: controller.perksParaElegir!,
+          onSeleccionar: (perk) {
+            controller.seleccionarPerk(perk);
+            onPerkSeleccionado();
+          },
+        ),
+      );
+    } else if (controller.mensajeNarrativoActual != null) {
+      return SafeArea(
+        top: false,
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -654,6 +748,7 @@ class _CombateContenido extends StatelessWidget {
       );
     } else if (controller.encuentroSuperado) {
       return SafeArea(
+        top: false,
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -662,15 +757,22 @@ class _CombateContenido extends StatelessWidget {
                     evento: controller.eventoActivo!,
                     visualScene: controller.eventoActualVisual?.visualScene,
                     vidaActual: controller.vidaJugador,
-                    onSeleccionar: controller.resolverEventoDecision,
+                    onSeleccionar: (opcion) {
+                      controller.resolverEventoDecision(opcion);
+                      onPerkSeleccionado();
+                    },
                   )
                 : _RondaSuperada(
                     rondaActual: controller.ronda,
                     vidaActual: controller.vidaJugador,
-                    onDescansoSeguro: () =>
-                        controller.continuarSiguienteRonda(temerario: false),
-                    onPactoTemerario: () =>
-                        controller.continuarSiguienteRonda(temerario: true),
+                    onDescansoSeguro: () {
+                      controller.continuarSiguienteRonda(temerario: false);
+                      onPerkSeleccionado();
+                    },
+                    onPactoTemerario: () {
+                      controller.continuarSiguienteRonda(temerario: true);
+                      onPerkSeleccionado();
+                    },
                     onRetirarseConBotin: () => controller.retirarse(),
                   ),
           ),
@@ -678,6 +780,7 @@ class _CombateContenido extends StatelessWidget {
       );
     } else if (controller.combateTerminado) {
       return SafeArea(
+        top: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: _FinCombate(
@@ -690,11 +793,15 @@ class _CombateContenido extends StatelessWidget {
       );
     }
 
+    final topPadding = MediaQuery.paddingOf(context).top;
+
     // COMBATE ACTIVO: ZERO-SCROLL TACTICAL SPLIT HUD
     return SafeArea(
+      top: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          SizedBox(height: topPadding),
           // 1. Banda Superior: Arena de Combate (Altura fija 160px)
           SizedBox(
             height: 160,
@@ -703,11 +810,17 @@ class _CombateContenido extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: BattleStage(
+                    height: 160,
+                    scrollOffset: arenaPhase == ArenaPhase.walkingCorridor ? scrollOffset : 0.0,
+                    showCeilingHole: arenaPhase == ArenaPhase.portalDropIntro,
+                    isEnemyVisible: arenaPhase == ArenaPhase.combatActive,
+                    playerCustomTop: arenaPhase == ArenaPhase.portalDropIntro ? portalDropTop : null,
                     playerActor: BattleFighterWidget(
                       key: playerFighterKey,
                       characterPrefix: 'knight_m',
-                      weaponSprite: 'weapon_knight_sword.png',
+                      weaponSprite: controller.armaEquipada,
                       isEnemy: false,
+                      forceRun: arenaPhase == ArenaPhase.walkingCorridor,
                     ),
                     enemyActor: EnemyDamageAndDeathWrapper(
                       isHit: enemigoRecibioGolpe,
@@ -725,6 +838,71 @@ class _CombateContenido extends StatelessWidget {
                   ),
                 ),
 
+                // Cartel superpuesto durante la caída del portal
+                if (arenaPhase == ArenaPhase.portalDropIntro)
+                  Positioned(
+                    top: 24,
+                    left: 20,
+                    right: 20,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: SysQuestColors.dungeonVoid.withValues(alpha: 0.9),
+                          border: Border.all(color: SysQuestColors.gold, width: 2),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              (questCompleta?.questTitle ?? controller.questTitle).toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: SysQuestTypography.h3.copyWith(
+                                color: SysQuestColors.gold,
+                                fontSize: 9,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'TEMA: ${(questCompleta?.resolvedTopic ?? controller.resolvedTopic).toUpperCase()}',
+                              textAlign: TextAlign.center,
+                              style: SysQuestTypography.caption.copyWith(
+                                color: SysQuestColors.parchmentText,
+                                fontSize: 7,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Bocadillo retro sobre la cabeza del héroe durante la caminata
+                if (arenaPhase == ArenaPhase.walkingCorridor)
+                  Positioned(
+                    top: 20,
+                    left: 20,
+                    right: 20,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: SysQuestColors.dungeonVoid.withValues(alpha: 0.9),
+                          border: Border.all(color: SysQuestColors.parchmentText, width: 1.5),
+                        ),
+                        child: Text(
+                          walkingSpeech,
+                          textAlign: TextAlign.center,
+                          style: SysQuestTypography.caption.copyWith(
+                            color: SysQuestColors.parchmentText,
+                            fontSize: 7.5,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
                 // Arriba a la derecha: Barra de vida del enemigo (primero en árbol para barras.at(0))
                 Positioned(
                   top: 8,
@@ -732,8 +910,6 @@ class _CombateContenido extends StatelessWidget {
                   child: _BarraVidaEnemigoCompacta(
                     vida: controller.vidaEnemigo,
                     vidaMaxima: encuentro.vidaEnemigo,
-                    danio: danioEnemigo,
-                    danioKey: danioEnemigoKey,
                   ),
                 ),
 
@@ -743,10 +919,33 @@ class _CombateContenido extends StatelessWidget {
                   left: 8,
                   child: _BarraVidaHeroeCompacta(
                     vida: controller.vidaJugador,
-                    danio: danioJugador,
-                    danioKey: danioJugadorKey,
                   ),
                 ),
+
+                // Daños flotantes dentro del margen seguro (top: 10, nunca cortados)
+                if (danioEnemigo != null)
+                  Positioned(
+                    top: 10,
+                    right: 16,
+                    child: _NumeroDanio(
+                      key: ValueKey(danioEnemigoKey),
+                      valor: danioEnemigo!,
+                      color: SysQuestColors.gold,
+                      esCritico: controller.resultadoUltimoTurno?.resultado == ResultadoTurno.critico,
+                    ),
+                  ),
+
+                if (danioJugador != null)
+                  Positioned(
+                    top: 10,
+                    left: 16,
+                    child: _NumeroDanio(
+                      key: ValueKey(danioJugadorKey),
+                      valor: danioJugador!,
+                      color: SysQuestColors.lifeRed,
+                      esCritico: false,
+                    ),
+                  ),
 
                 // Badge Temerario si aplica
                 if (controller.modoTemerarioActivo)
@@ -922,68 +1121,49 @@ class _CombateContenido extends StatelessWidget {
 
 class _BarraVidaHeroeCompacta extends StatelessWidget {
   final int vida;
-  final int? danio;
-  final int danioKey;
 
   const _BarraVidaHeroeCompacta({
     required this.vida,
-    required this.danio,
-    required this.danioKey,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 140,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: SysQuestColors.dungeonVoid.withValues(alpha: 0.85),
-            border: Border.all(color: SysQuestColors.borderBlack, width: 2),
-            boxShadow: const [
-              BoxShadow(
-                color: SysQuestColors.shadowBlack,
-                offset: Offset(0, 2),
-              ),
-            ],
+    return Container(
+      width: 140,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: SysQuestColors.dungeonVoid.withValues(alpha: 0.85),
+        border: Border.all(color: SysQuestColors.borderBlack, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: SysQuestColors.shadowBlack,
+            offset: Offset(0, 2),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'HÉROE $vida/100',
-                style: SysQuestTypography.caption.copyWith(
-                  color: AppTheme.verdeVida,
-                  fontSize: 7,
-                ),
-              ),
-              const SizedBox(height: 3),
-              ClipRRect(
-                borderRadius: BorderRadius.zero,
-                child: LinearProgressIndicator(
-                  value: (vida / 100).clamp(0.0, 1.0),
-                  color: AppTheme.verdeVida,
-                  backgroundColor: SysQuestColors.stonePanel,
-                  minHeight: 6,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (danio != null)
-          Positioned(
-            top: -8,
-            right: 12,
-            child: _NumeroDanio(
-              key: ValueKey(danioKey),
-              valor: danio!,
-              color: SysQuestColors.lifeRed,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'HÉROE $vida/100',
+            style: SysQuestTypography.caption.copyWith(
+              color: AppTheme.verdeVida,
+              fontSize: 7,
             ),
           ),
-      ],
+          const SizedBox(height: 3),
+          ClipRRect(
+            borderRadius: BorderRadius.zero,
+            child: LinearProgressIndicator(
+              value: (vida / 100).clamp(0.0, 1.0),
+              color: AppTheme.verdeVida,
+              backgroundColor: SysQuestColors.stonePanel,
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -991,70 +1171,51 @@ class _BarraVidaHeroeCompacta extends StatelessWidget {
 class _BarraVidaEnemigoCompacta extends StatelessWidget {
   final int vida;
   final int vidaMaxima;
-  final int? danio;
-  final int danioKey;
 
   const _BarraVidaEnemigoCompacta({
     required this.vida,
     required this.vidaMaxima,
-    required this.danio,
-    required this.danioKey,
   });
 
   @override
   Widget build(BuildContext context) {
     final maximo = vidaMaxima > 0 ? vidaMaxima : 100;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 140,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: SysQuestColors.dungeonVoid.withValues(alpha: 0.85),
-            border: Border.all(color: SysQuestColors.borderBlack, width: 2),
-            boxShadow: const [
-              BoxShadow(
-                color: SysQuestColors.shadowBlack,
-                offset: Offset(0, 2),
-              ),
-            ],
+    return Container(
+      width: 140,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: SysQuestColors.dungeonVoid.withValues(alpha: 0.85),
+        border: Border.all(color: SysQuestColors.borderBlack, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: SysQuestColors.shadowBlack,
+            offset: Offset(0, 2),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'ENEMIGO $vida/$maximo',
-                style: SysQuestTypography.caption.copyWith(
-                  color: SysQuestColors.lifeRed,
-                  fontSize: 7,
-                ),
-              ),
-              const SizedBox(height: 3),
-              ClipRRect(
-                borderRadius: BorderRadius.zero,
-                child: LinearProgressIndicator(
-                  value: (vida / maximo).clamp(0.0, 1.0),
-                  color: SysQuestColors.lifeRed,
-                  backgroundColor: SysQuestColors.stonePanel,
-                  minHeight: 6,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (danio != null)
-          Positioned(
-            top: -8,
-            right: 12,
-            child: _NumeroDanio(
-              key: ValueKey(danioKey),
-              valor: danio!,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'ENEMIGO $vida/$maximo',
+            style: SysQuestTypography.caption.copyWith(
               color: SysQuestColors.lifeRed,
+              fontSize: 7,
             ),
           ),
-      ],
+          const SizedBox(height: 3),
+          ClipRRect(
+            borderRadius: BorderRadius.zero,
+            child: LinearProgressIndicator(
+              value: (vida / maximo).clamp(0.0, 1.0),
+              color: SysQuestColors.lifeRed,
+              backgroundColor: SysQuestColors.stonePanel,
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1699,8 +1860,14 @@ class _FilaResumen extends StatelessWidget {
 class _NumeroDanio extends StatefulWidget {
   final int valor;
   final Color color;
+  final bool esCritico;
 
-  const _NumeroDanio({super.key, required this.valor, required this.color});
+  const _NumeroDanio({
+    super.key,
+    required this.valor,
+    required this.color,
+    this.esCritico = false,
+  });
 
   @override
   State<_NumeroDanio> createState() => _NumeroDanioState();
@@ -1716,7 +1883,7 @@ class _NumeroDanioState extends State<_NumeroDanio> with SingleTickerProviderSta
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1400),
     );
     _opacidad = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 15), 
@@ -1724,8 +1891,8 @@ class _NumeroDanioState extends State<_NumeroDanio> with SingleTickerProviderSta
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 25), 
     ]).animate(_controller);
 
-    _desplazamiento = Tween<double>(begin: 0.0, end: -40.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    _desplazamiento = Tween<double>(begin: 0.0, end: -14.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutQuad),
     );
 
     _controller.forward();
@@ -1739,8 +1906,8 @@ class _NumeroDanioState extends State<_NumeroDanio> with SingleTickerProviderSta
 
   @override
   Widget build(BuildContext context) {
-    final bool esCritico = widget.valor >= 25;
-    final double fontSize = esCritico ? 32 : 24;
+    final bool esCritico = widget.esCritico || widget.valor >= 25;
+    final double fontSize = esCritico ? 18 : 14;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -1751,29 +1918,141 @@ class _NumeroDanioState extends State<_NumeroDanio> with SingleTickerProviderSta
           child: child,
         ),
       ),
-      child: Stack(
-        clipBehavior: Clip.none,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            '-${widget.valor}',
-            style: TextStyle(
-              fontFamily: 'PressStart2P',
-              fontSize: fontSize,
-              foreground: Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 4
-                ..color = Colors.black,
+          if (esCritico)
+            Text(
+              '+CRIT!',
+              style: TextStyle(
+                fontFamily: 'PressStart2P',
+                fontSize: 8,
+                color: SysQuestColors.gold,
+                shadows: const [
+                  Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
+                ],
+              ),
             ),
-          ),
-          Text(
-            '-${widget.valor}',
-            style: TextStyle(
-              fontFamily: 'PressStart2P',
-              fontSize: fontSize,
-              color: widget.color,
-            ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Text(
+                '-${widget.valor}',
+                style: TextStyle(
+                  fontFamily: 'PressStart2P',
+                  fontSize: fontSize,
+                  foreground: Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = 3
+                    ..color = Colors.black,
+                ),
+              ),
+              Text(
+                '-${widget.valor}',
+                style: TextStyle(
+                  fontFamily: 'PressStart2P',
+                  fontSize: fontSize,
+                  color: widget.color,
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DialogoEleccionPerks extends StatelessWidget {
+  final List<RoguelitePerk> perks;
+  final ValueChanged<RoguelitePerk> onSeleccionar;
+
+  const _DialogoEleccionPerks({
+    required this.perks,
+    required this.onSeleccionar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.88),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: RetroPanelBox(
+          borderColor: SysQuestColors.gold,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '¡MEJORA DE MAZMORRA!',
+                textAlign: TextAlign.center,
+                style: SysQuestTypography.h2.copyWith(
+                  color: SysQuestColors.gold,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Elige un poder para sobrevivir a los próximos sectores:',
+                textAlign: TextAlign.center,
+                style: SysQuestTypography.caption.copyWith(
+                  color: SysQuestColors.parchmentText,
+                  fontSize: 8,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ...perks.map((perk) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: InkWell(
+                  onTap: () => onSeleccionar(perk),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: SysQuestColors.dungeonVoid,
+                      border: Border.all(
+                        color: SysQuestColors.stoneHighlight,
+                        width: 2,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        PixelIcon(fileName: perk.sprite, size: 30),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                perk.nombre,
+                                style: SysQuestTypography.h3.copyWith(
+                                  color: SysQuestColors.gold,
+                                  fontSize: 9,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                perk.descripcion,
+                                style: SysQuestTypography.caption.copyWith(
+                                  color: SysQuestColors.parchmentText,
+                                  fontSize: 7.5,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )),
+            ],
+          ),
+        ),
       ),
     );
   }

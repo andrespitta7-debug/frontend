@@ -90,6 +90,7 @@ class _GenerarQuestScreenState extends State<GenerarQuestScreen> {
     return Scaffold(
       backgroundColor: SysQuestColors.dungeonVoid,
       body: SafeArea(
+        top: false,
         child: DungeonMenuBackdrop(
           isDoorOpen: false,
           child: Consumer<GenerarQuestController>(
@@ -104,10 +105,16 @@ class _GenerarQuestScreenState extends State<GenerarQuestScreen> {
 
   Widget _buildVistaFormulario(GenerarQuestController controller) {
     final error = _errorTema ?? controller.mensajeError;
+    final topPadding = MediaQuery.paddingOf(context).top;
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        padding: EdgeInsets.only(
+          top: topPadding + 16,
+          bottom: 24,
+          left: 20,
+          right: 20,
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
           child: Column(
@@ -176,7 +183,7 @@ class _GenerarQuestScreenState extends State<GenerarQuestScreen> {
                       if (controller.puedeUsarFallback) ...[
                         const SizedBox(height: 10),
                         RetroPixelButton(
-                          text: 'JUGAR QUEST CURADA',
+                          text: 'MAZMORRA DE PRÁCTICA (MODO LOCAL)',
                           color: SysQuestColors.stonePanel,
                           textColor: SysQuestColors.gold,
                           onPressed: _jugarQuestRespaldo,

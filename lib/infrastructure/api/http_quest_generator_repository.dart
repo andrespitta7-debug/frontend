@@ -8,6 +8,7 @@ import '../../domain/entities/quest.dart';
 import '../../domain/entities/quest_completa.dart';
 import '../../domain/repositories/quest_generator_repository.dart';
 import '../../domain/repositories/token_repository.dart';
+import '../../presentation/utils/local_dungeon_narrator.dart';
 import 'api_exception.dart';
 
 
@@ -98,7 +99,25 @@ class HttpQuestGeneratorRepository implements QuestGeneratorRepository {
           encuentros.add(_parsearEncuentro(item as Map<String, dynamic>, questId));
         }
 
-        final Map<String, dynamic>? poolNarrativo = data['pool_narrativo'] as Map<String, dynamic>?;
+        final rawQuestTitle = data['quest_title'] as String?;
+        final questTitle = (rawQuestTitle != null && rawQuestTitle.trim().isNotEmpty)
+            ? rawQuestTitle.trim()
+            : (quest.titulo.trim().isNotEmpty ? quest.titulo.trim() : 'Incursión en la Mazmorra');
+
+        final rawResolvedTopic = data['resolved_topic'] as String?;
+        final resolvedTopic = (rawResolvedTopic != null && rawResolvedTopic.trim().isNotEmpty)
+            ? rawResolvedTopic.trim()
+            : (quest.tema.trim().isNotEmpty ? quest.tema.trim() : 'Conocimiento Arcano');
+
+        Map<String, dynamic>? poolNarrativo;
+        if (data['pool_narrativo'] is Map && (data['pool_narrativo'] as Map).isNotEmpty) {
+          poolNarrativo = Map<String, dynamic>.from(data['pool_narrativo'] as Map);
+        } else {
+          poolNarrativo = LocalDungeonNarrator.generateDefaultPool(
+            questTitle: questTitle,
+            resolvedTopic: resolvedTopic,
+          );
+        }
 
         final List<Encuentro> preguntasExtra = <Encuentro>[];
         if (data['preguntas_extra'] is List<dynamic>) {
@@ -115,6 +134,8 @@ class HttpQuestGeneratorRepository implements QuestGeneratorRepository {
           preguntasExtra: preguntasExtra,
           semilla: (data['semilla'] as num?)?.toInt() ?? 0,
           idPartida: data['id_partida'] as String? ?? '',
+          questTitle: questTitle,
+          resolvedTopic: resolvedTopic,
         );
       } catch (e) {
         if (e is ApiException) rethrow;

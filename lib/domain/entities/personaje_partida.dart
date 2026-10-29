@@ -18,6 +18,8 @@ class Partida {
   final String idPartida; // UUID
   final String idUsuario;
   final String idQuest;
+  final String questTitle;
+  final String resolvedTopic;
   String estado; // "en_curso" / "ganada" / "perdida"
   int encuentroActual; // índice del encuentro en el que va
   int score;
@@ -32,6 +34,8 @@ class Partida {
     required this.idPartida,
     required this.idUsuario,
     required this.idQuest,
+    this.questTitle = 'Incursión en la Mazmorra',
+    this.resolvedTopic = 'Conocimiento Arcano',
     this.estado = 'en_curso',
     this.encuentroActual = 0,
     this.score = 0,

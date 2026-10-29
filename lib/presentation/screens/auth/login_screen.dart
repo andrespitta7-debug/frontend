@@ -67,14 +67,22 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
 
+    final topPadding = MediaQuery.paddingOf(context).top;
+
     return Scaffold(
       backgroundColor: SysQuestColors.dungeonVoid,
       body: SafeArea(
+        top: false,
         child: DungeonMenuBackdrop(
           isDoorOpen: false,
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              padding: EdgeInsets.only(
+                top: topPadding + 16,
+                bottom: 24,
+                left: 20,
+                right: 20,
+              ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: Column(

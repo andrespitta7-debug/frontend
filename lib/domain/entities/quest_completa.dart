@@ -8,6 +8,8 @@ class QuestCompleta {
   final List<Encuentro> preguntasExtra;
   final int semilla;
   final String idPartida;
+  final String questTitle;
+  final String resolvedTopic;
 
   QuestCompleta({
     required this.quest,
@@ -16,6 +18,8 @@ class QuestCompleta {
     List<Encuentro>? preguntasExtra,
     this.semilla = 0,
     this.idPartida = '',
+    this.questTitle = 'Incursión en la Mazmorra',
+    this.resolvedTopic = 'Conocimiento Arcano',
   })  : encuentros = List<Encuentro>.unmodifiable(encuentros),
         preguntasExtra = List<Encuentro>.unmodifiable(preguntasExtra ?? const []);
 }

@@ -1,21 +1,35 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Arena de combate 2.5D con tiles repetidos (pared y suelo) y props pixel art.
+/// Arena de combate 2.5D con tiles repetidos (pared y suelo), props pixel art,
+/// soporte de desplazamiento horizontal para efecto de caminata y agujero en el techo.
 class BattleStage extends StatelessWidget {
   final Widget playerActor;
   final Widget enemyActor;
   final double height;
+  final double scrollOffset;
+  final bool showCeilingHole;
+  final bool isEnemyVisible;
+  final double? playerCustomBottom;
+  final double? playerCustomTop;
 
   const BattleStage({
     super.key,
     required this.playerActor,
     required this.enemyActor,
     this.height = 220.0,
+    this.scrollOffset = 0.0,
+    this.showCeilingHole = false,
+    this.isEnemyVisible = true,
+    this.playerCustomBottom,
+    this.playerCustomTop,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool isMoving = scrollOffset > 0.0;
+    final double offsetNorm = scrollOffset % 64.0;
+
     return RepaintBoundary(
       child: Container(
         height: height,
@@ -40,11 +54,11 @@ class BattleStage extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.hardEdge,
             children: [
-              // 1. Pared superior de la mazmorra con repetición horizontal
+              // 1. Pared superior de la mazmorra con repetición horizontal y desplazamiento
               Positioned(
                 top: 0,
-                left: 0,
-                right: 0,
+                left: -offsetNorm,
+                right: -64.0,
                 height: 48,
                 child: Image.asset(
                   'assets/sprites/frames/wall_mid.png',
@@ -55,11 +69,11 @@ class BattleStage extends StatelessWidget {
                 ),
               ),
 
-              // 2. Suelo de baldosas de piedra con repetición 2D
+              // 2. Suelo de baldosas de piedra con repetición 2D y desplazamiento
               Positioned(
                 top: 48,
-                left: 0,
-                right: 0,
+                left: -offsetNorm,
+                right: -64.0,
                 bottom: 0,
                 child: Image.asset(
                   'assets/sprites/frames/floor_1.png',
@@ -70,66 +84,87 @@ class BattleStage extends StatelessWidget {
                 ),
               ),
 
-              // 3. Props del escenario
-              // Puerta de la mazmorra en la pared central
-              const _PixelProp(
-                assetName: 'doors_leaf_closed.png',
-                top: 4,
-                left: 0,
-                right: 0,
-                alignment: Alignment.topCenter,
-              ),
+              // 3. Agujero en el techo para la intro de caída del portal
+              if (showCeilingHole)
+                Positioned(
+                  top: 0,
+                  left: 42,
+                  child: Image.asset(
+                    'assets/sprites/frames/hole.png',
+                    scale: 0.25,
+                    filterQuality: FilterQuality.none,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ),
 
-              // Columnas de piedra a los costados
-              const _PixelProp(
-                assetName: 'column.png',
-                top: 6,
-                left: 12,
-              ),
-              const _PixelProp(
-                assetName: 'column.png',
-                top: 6,
-                right: 12,
-              ),
+              // 4. Props del escenario (visibles cuando no está en movimiento continuo)
+              if (!isMoving && !showCeilingHole) ...[
+                // Puerta de la mazmorra en la pared central
+                const _PixelProp(
+                  assetName: 'doors_leaf_closed.png',
+                  top: 4,
+                  left: 0,
+                  right: 0,
+                  alignment: Alignment.topCenter,
+                ),
 
-              // Caja de suministros
-              const _PixelProp(
-                assetName: 'crate.png',
-                top: 50,
-                left: 18,
-              ),
+                // Columnas de piedra a los costados
+                const _PixelProp(
+                  assetName: 'column.png',
+                  top: 6,
+                  left: 12,
+                ),
+                const _PixelProp(
+                  assetName: 'column.png',
+                  top: 6,
+                  right: 12,
+                ),
 
-              // Calavera en el suelo
-              const _PixelProp(
-                assetName: 'skull.png',
-                bottom: 6,
-                left: 135,
-                scale: 0.35,
-              ),
+                // Caja de suministros
+                const _PixelProp(
+                  assetName: 'crate.png',
+                  top: 50,
+                  left: 18,
+                ),
 
-              // 4. Sombras de los luchadores en el suelo
-              const Positioned(
-                bottom: 8,
-                left: 48,
-                child: _ShadowOval(width: 56, height: 16),
-              ),
-              const Positioned(
-                bottom: 8,
-                right: 48,
-                child: _ShadowOval(width: 56, height: 16),
-              ),
+                // Calavera en el suelo
+                const _PixelProp(
+                  assetName: 'skull.png',
+                  bottom: 6,
+                  left: 135,
+                  scale: 0.35,
+                ),
+              ],
 
-              // 5. Actores (Jugador y Enemigo)
+              // 5. Sombras de los luchadores en el suelo
               Positioned(
-                bottom: 12,
+                bottom: 8,
+                left: 40,
+                child: Opacity(
+                  opacity: (playerCustomTop == null || playerCustomTop! >= height - 90) ? 1.0 : 0.0,
+                  child: const _ShadowOval(width: 56, height: 16),
+                ),
+              ),
+              if (isEnemyVisible)
+                const Positioned(
+                  bottom: 8,
+                  right: 40,
+                  child: _ShadowOval(width: 56, height: 16),
+                ),
+
+              // 6. Actores (Jugador y Enemigo)
+              Positioned(
+                top: playerCustomTop,
+                bottom: playerCustomBottom ?? (playerCustomTop == null ? 12 : null),
                 left: 44,
                 child: playerActor,
               ),
-              Positioned(
-                bottom: 12,
-                right: 44,
-                child: enemyActor,
-              ),
+              if (isEnemyVisible)
+                Positioned(
+                  bottom: 12,
+                  right: 44,
+                  child: enemyActor,
+                ),
             ],
           ),
         ),
