@@ -33,7 +33,7 @@ import 'presentation/screens/auth/auth_controller.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/combate/combate_controller.dart';
 import 'presentation/screens/generar_quest/generar_quest_controller.dart';
-import 'presentation/screens/menu/menu_principal_screen.dart';
+import 'presentation/screens/menu/main_hub_screen.dart';
 import 'presentation/screens/progreso/progreso_controller.dart';
 import 'presentation/theme/app_theme.dart';
 
@@ -237,6 +237,6 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
     if (_usuario == null) return const LoginScreen();
-    return MenuPrincipalScreen(usuario: _usuario!);
+    return MainHubScreen(usuario: _usuario!);
   }
 }

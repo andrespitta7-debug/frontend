@@ -89,16 +89,22 @@ class _GenerarQuestScreenState extends State<GenerarQuestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: SysQuestColors.dungeonVoid,
-      body: SafeArea(
-        top: false,
-        child: DungeonMenuBackdrop(
-          isDoorOpen: false,
-          child: Consumer<GenerarQuestController>(
-            builder: (context, controller, _) {
-              return _buildVistaFormulario(controller);
-            },
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(
+            child: DungeonMenuBackdrop(
+              isDoorOpen: false,
+            ),
           ),
-        ),
+          Positioned.fill(
+            child: Consumer<GenerarQuestController>(
+              builder: (context, controller, _) {
+                return _buildVistaFormulario(controller);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

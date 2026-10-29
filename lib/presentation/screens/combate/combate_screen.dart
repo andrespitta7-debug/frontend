@@ -14,11 +14,14 @@ import '../../../domain/entities/roguelite_perk.dart';
 import '../../utils/local_dungeon_narrator.dart';
 import '../../theme/app_theme.dart';
 import '../generar/generar_quest_screen.dart';
+import '../auth/auth_controller.dart';
+import '../menu/main_hub_screen.dart';
 import '../progreso/progreso_screen.dart';
 import '../../widgets/battle_fighter.dart';
 import '../../widgets/battle_stage.dart';
 import '../../widgets/enemy_damage_wrapper.dart';
 import 'combate_controller.dart';
+import '../../core/design_system/transitions/retro_page_route.dart';
 import '../../core/design_system/sysquest_theme.dart';
 import '../../core/design_system/widgets/pixel_icon.dart';
 import '../../core/design_system/widgets/retro_panel_box.dart';
@@ -500,12 +503,19 @@ class _CombateScreenState extends State<CombateScreen>
   }
 
   void _verProgreso() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProgresoScreen(idUsuario: widget.idUsuario),
-      ),
-    );
+    final auth = context.read<AuthController>();
+    final usuario = auth.usuarioActual;
+    if (usuario != null) {
+      Navigator.pushReplacement(
+        context,
+        buildRetroRoute(MainHubScreen(usuario: usuario, initialIndex: 1)),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        buildRetroRoute(ProgresoScreen(idUsuario: widget.idUsuario)),
+      );
+    }
   }
 }
 

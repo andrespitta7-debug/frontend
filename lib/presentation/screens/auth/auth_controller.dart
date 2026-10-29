@@ -84,4 +84,6 @@ class AuthController extends ChangeNotifier {
     usuarioActual = null;
     notifyListeners();
   }
+
+  void logout() => cerrarSesion();
 }

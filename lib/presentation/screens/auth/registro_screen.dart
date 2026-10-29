@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/dialogo_alerta.dart';
 import '../../widgets/terminos_condiciones_dialog.dart';
-import '../menu/menu_principal_screen.dart';
+import '../../core/design_system/transitions/retro_page_route.dart';
+import '../menu/main_hub_screen.dart';
 import 'auth_controller.dart';
 
 class RegistroScreen extends StatefulWidget {
@@ -138,9 +139,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => MenuPrincipalScreen(usuario: usuario),
-        ),
+        buildRetroRoute(MainHubScreen(usuario: usuario)),
       );
     }
   }

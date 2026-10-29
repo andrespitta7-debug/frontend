@@ -4,13 +4,25 @@ import 'package:provider/provider.dart';
 import '../../../domain/entities/usuario.dart';
 import '../../../domain/usecases/auth_usecases.dart';
 import '../../../domain/usecases/perfil_usecases.dart';
+import '../../core/design_system/sysquest_theme.dart';
+import '../../core/design_system/transitions/retro_page_route.dart';
+import '../../core/design_system/widgets/dungeon_menu_backdrop.dart';
+import '../../core/design_system/widgets/pixel_icon.dart';
+import '../../core/design_system/widgets/retro_panel_box.dart';
+import '../../core/design_system/widgets/retro_pixel_button.dart';
 import '../../theme/app_theme.dart';
+import '../auth/auth_controller.dart';
 import '../auth/login_screen.dart';
 
 class PerfilScreen extends StatefulWidget {
   final Usuario usuario;
+  final bool enHub;
 
-  const PerfilScreen({super.key, required this.usuario});
+  const PerfilScreen({
+    super.key,
+    required this.usuario,
+    this.enHub = false,
+  });
 
   @override
   State<PerfilScreen> createState() => _PerfilScreenState();
@@ -214,72 +226,75 @@ class _PerfilScreenState extends State<PerfilScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-        leading: const BackButton(),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: _editando
-              ? _buildFormulario(context)
-              : _cambiandoPassword
-                  ? _buildFormularioPassword(context)
-                  : _buildLectura(context),
-        ),
-      ),
-    );
-  }
+  Future<void> _confirmarCerrarSesion(BuildContext context) async {
+    final authController = context.read<AuthController>();
+    final cerrarSesionUseCase = context.read<CerrarSesionUseCase>();
 
-  Widget _buildLectura(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _PerfilAvatar(),
-        const SizedBox(height: 18),
-        Text(
-          '${_usuario.nombre} ${_usuario.apellido}',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 24),
-        _DatoPerfil(label: 'Nombre', valor: _usuario.nombre),
-        _DatoPerfil(label: 'Apellido', valor: _usuario.apellido),
-        _DatoPerfil(label: 'Nombre de usuario', valor: _usuario.nombreUsuario),
-        _DatoPerfil(label: 'Correo', valor: _usuario.email),
-        const SizedBox(height: 4),
-        const Text(
-          'El correo no se puede cambiar por ahora',
-          style: TextStyle(color: AppTheme.azulTexto, fontSize: 12),
-        ),
-        const SizedBox(height: 28),
-        ElevatedButton.icon(
-          onPressed: _activarEdicion,
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text('Editar perfil'),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: _activarCambioPassword,
-          icon: const Icon(Icons.lock_outline),
-          label: const Text('Cambiar contraseña'),
-        ),
-        const SizedBox(height: 32),
-        const Divider(color: AppTheme.superficieElevada),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () => _confirmarEliminarCuenta(context),
-          icon: const Icon(Icons.delete_forever_outlined),
-          label: const Text('Eliminar cuenta'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.rojoDanio,
-            foregroundColor: Colors.white,
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: RetroPanelBox(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '¿ABANDONAR EL GREMIO?',
+                    style: SysQuestTypography.h2.copyWith(
+                      color: SysQuestColors.lifeRed,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Volverás a la pantalla de inicio.',
+                    style: SysQuestTypography.body.copyWith(
+                      fontSize: 10,
+                      color: SysQuestColors.parchmentText,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RetroPixelButton(
+                          text: 'CANCELAR',
+                          color: SysQuestColors.disabledGray,
+                          onPressed: () => Navigator.of(dialogCtx).pop(),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: RetroPixelButton(
+                          text: 'SALIR',
+                          color: SysQuestColors.lifeRed,
+                          onPressed: () async {
+                            Navigator.of(dialogCtx).pop();
+                            await cerrarSesionUseCase.ejecutar();
+                            authController.logout();
+                            if (!context.mounted) return;
+                            Navigator.of(context).pushAndRemoveUntil(
+                              buildRetroRoute(const LoginScreen()),
+                              (_) => false,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -296,21 +311,30 @@ class _PerfilScreenState extends State<PerfilScreen> {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             return AlertDialog(
-              title: const Text('Eliminar cuenta'),
+              backgroundColor: SysQuestColors.stonePanel,
+              title: Text(
+                'ELIMINAR CUENTA',
+                style: SysQuestTypography.h2.copyWith(
+                  color: SysQuestColors.lifeRed,
+                ),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
+                    Text(
                       'Esta acción es permanente e irreversible. Se borrarán todos tus datos de progreso y partidas.',
-                      style: TextStyle(color: AppTheme.azulTexto),
+                      style: SysQuestTypography.caption.copyWith(
+                        color: SysQuestColors.parchmentText.withValues(alpha: 0.8),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: passwordController,
                       enabled: !eliminando,
                       obscureText: ocultarPassword,
+                      style: const TextStyle(color: SysQuestColors.parchmentText),
                       decoration: InputDecoration(
                         labelText: 'Contraseña actual',
                         prefixIcon: const Icon(Icons.lock_outline),
@@ -340,7 +364,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   onPressed: eliminando
                       ? null
                       : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancelar'),
+                  child: Text(
+                    'CANCELAR',
+                    style: SysQuestTypography.caption.copyWith(
+                      color: SysQuestColors.parchmentText,
+                    ),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: eliminando
@@ -359,6 +388,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
                               context.read<EliminarCuentaUseCase>();
                           final cerrarSesionUseCase =
                               context.read<CerrarSesionUseCase>();
+                          final authController =
+                              context.read<AuthController>();
                           final navigator = Navigator.of(context);
                           final messenger = ScaffoldMessenger.of(context);
 
@@ -373,13 +404,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
                               passwordActual: password,
                             );
                             await cerrarSesionUseCase.ejecutar();
+                            authController.logout();
 
                             if (!dialogContext.mounted) return;
                             Navigator.of(dialogContext).pop();
                             navigator.pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
-                              ),
+                              buildRetroRoute(const LoginScreen()),
                               (route) => false,
                             );
                             messenger.showSnackBar(
@@ -398,7 +428,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.rojoDanio,
+                    backgroundColor: SysQuestColors.lifeRed,
                     foregroundColor: Colors.white,
                   ),
                   child: eliminando
@@ -412,7 +442,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             ),
                           ),
                         )
-                      : const Text('Eliminar cuenta'),
+                      : Text(
+                          'ELIMINAR',
+                          style: SysQuestTypography.caption.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ],
             );
@@ -423,80 +459,203 @@ class _PerfilScreenState extends State<PerfilScreen> {
     passwordController.dispose();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.paddingOf(context).top;
+
+    final content = SingleChildScrollView(
+      padding: EdgeInsets.only(
+        top: (widget.enHub ? topPadding : 8) + 16,
+        bottom: 32,
+        left: 20,
+        right: 20,
+      ),
+      child: _editando
+          ? _buildFormulario(context)
+          : _cambiandoPassword
+              ? _buildFormularioPassword(context)
+              : _buildLectura(context),
+    );
+
+    if (widget.enHub) {
+      return content;
+    }
+
+    return Scaffold(
+      backgroundColor: SysQuestColors.dungeonVoid,
+      appBar: AppBar(
+        title: const Text('Mi perfil'),
+        backgroundColor: SysQuestColors.stonePanel,
+        leading: const BackButton(),
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(
+            child: DungeonMenuBackdrop(
+              isDoorOpen: false,
+            ),
+          ),
+          Positioned.fill(
+            child: content,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLectura(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.enHub) ...[
+          Text(
+            'PERFIL DE AVENTURERO',
+            style: SysQuestTypography.h2.copyWith(
+              color: SysQuestColors.gold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 18),
+        ],
+        const _PerfilAvatar(),
+        const SizedBox(height: 18),
+        Text(
+          '${_usuario.nombre} ${_usuario.apellido}',
+          textAlign: TextAlign.center,
+          style: SysQuestTypography.h2.copyWith(
+            color: SysQuestColors.parchmentText,
+          ),
+        ),
+        const SizedBox(height: 20),
+        RetroPanelBox(
+          child: Column(
+            children: [
+              _DatoPerfil(label: 'Nombre', valor: _usuario.nombre),
+              _DatoPerfil(label: 'Apellido', valor: _usuario.apellido),
+              _DatoPerfil(
+                label: 'Nombre de usuario',
+                valor: _usuario.nombreUsuario,
+              ),
+              _DatoPerfil(label: 'Correo', valor: _usuario.email),
+              const SizedBox(height: 6),
+              Text(
+                'El correo no se puede cambiar por ahora',
+                style: SysQuestTypography.caption.copyWith(
+                  color: SysQuestColors.manaCyan,
+                  fontSize: 8,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        RetroPixelButton(
+          onPressed: _activarEdicion,
+          color: SysQuestColors.stoneHighlight,
+          text: 'EDITAR PERFIL',
+        ),
+        const SizedBox(height: 12),
+        RetroPixelButton(
+          onPressed: _activarCambioPassword,
+          color: SysQuestColors.stonePanel,
+          leadingSpriteFile: 'chest_empty_open_anim_f0.png',
+          text: 'CAMBIAR CONTRASEÑA',
+        ),
+        const SizedBox(height: 12),
+        RetroPixelButton(
+          text: 'CERRAR SESIÓN',
+          color: SysQuestColors.lifeRed,
+          leadingSpriteFile: 'lever_left.png',
+          onPressed: () => _confirmarCerrarSesion(context),
+        ),
+        const SizedBox(height: 24),
+        const Divider(color: SysQuestColors.stoneHighlight),
+        const SizedBox(height: 12),
+        RetroPixelButton(
+          onPressed: () => _confirmarEliminarCuenta(context),
+          color: SysQuestColors.dungeonVoid,
+          textColor: SysQuestColors.lifeRed,
+          leadingSpriteFile: 'skull.png',
+          text: 'ELIMINAR CUENTA',
+        ),
+      ],
+    );
+  }
+
   Widget _buildFormulario(BuildContext context) {
     return Form(
       key: _formKey,
       autovalidateMode: AutovalidateMode.onUserInteraction,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Editar perfil',
-                style: Theme.of(context).textTheme.headlineSmall,
+      child: RetroPanelBox(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'EDITAR PERFIL',
+              style: SysQuestTypography.h2.copyWith(
+                color: SysQuestColors.gold,
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _nombreController,
-                enabled: !_guardando,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                validator: (value) => _validarTexto(value, 'El nombre'),
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _nombreController,
+              enabled: !_guardando,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              validator: (value) => _validarTexto(value, 'El nombre'),
+              decoration: const InputDecoration(
+                labelText: 'Nombre',
+                prefixIcon: Icon(Icons.person_outline),
               ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _apellidoController,
-                enabled: !_guardando,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                validator: (value) => _validarTexto(value, 'El apellido'),
-                decoration: const InputDecoration(
-                  labelText: 'Apellido',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _apellidoController,
+              enabled: !_guardando,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              validator: (value) => _validarTexto(value, 'El apellido'),
+              decoration: const InputDecoration(
+                labelText: 'Apellido',
+                prefixIcon: Icon(Icons.badge_outlined),
               ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _nombreUsuarioController,
-                enabled: !_guardando,
-                textInputAction: TextInputAction.done,
-                validator: _validarNombreUsuario,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre de usuario',
-                  prefixIcon: Icon(Icons.alternate_email),
-                ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _nombreUsuarioController,
+              enabled: !_guardando,
+              textInputAction: TextInputAction.done,
+              validator: _validarNombreUsuario,
+              decoration: const InputDecoration(
+                labelText: 'Nombre de usuario',
+                prefixIcon: Icon(Icons.alternate_email),
               ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                _ErrorBanner(mensaje: _error!),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _guardando ? null : _guardar,
-                  child: _guardando
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        )
-                      : const Text('Guardar'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _guardando ? null : _cancelarEdicion,
-                child: const Text('Cancelar'),
-              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              _ErrorBanner(mensaje: _error!),
             ],
-          ),
+            const SizedBox(height: 20),
+            RetroPixelButton(
+              onPressed: _guardando ? null : _guardar,
+              color: SysQuestColors.successGreen,
+              textColor: SysQuestColors.dungeonVoid,
+              text: _guardando ? 'GUARDANDO...' : 'GUARDAR CAMBIOS',
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _guardando ? null : _cancelarEdicion,
+              child: Text(
+                'CANCELAR',
+                style: SysQuestTypography.caption.copyWith(
+                  color: SysQuestColors.parchmentText,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -506,139 +665,139 @@ class _PerfilScreenState extends State<PerfilScreen> {
     return Form(
       key: _passwordFormKey,
       autovalidateMode: AutovalidateMode.onUserInteraction,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Cambiar contraseña',
-                style: Theme.of(context).textTheme.headlineSmall,
+      child: RetroPanelBox(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'CAMBIAR CONTRASEÑA',
+              style: SysQuestTypography.h2.copyWith(
+                color: SysQuestColors.gold,
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _passwordActualController,
-                enabled: !_guardandoPassword,
-                obscureText: _ocultarActual,
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingresa tu contraseña actual.';
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  labelText: 'Contraseña actual',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _ocultarActual
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _ocultarActual = !_ocultarActual;
-                      });
-                    },
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _passwordActualController,
+              enabled: !_guardandoPassword,
+              obscureText: _ocultarActual,
+              textInputAction: TextInputAction.next,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Ingresa tu contraseña actual.';
+                }
+                return null;
+              },
+              decoration: InputDecoration(
+                labelText: 'Contraseña actual',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _ocultarActual
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      _ocultarActual = !_ocultarActual;
+                    });
+                  },
                 ),
               ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _passwordNuevaController,
-                enabled: !_guardandoPassword,
-                obscureText: _ocultarNueva,
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingresa la nueva contraseña.';
-                  }
-                  if (value.length < 8 ||
-                      !RegExp(r'[A-Za-z]').hasMatch(value) ||
-                      !RegExp(r'[0-9]').hasMatch(value)) {
-                    return 'La contraseña debe tener al menos 8 caracteres, una letra y un número.';
-                  }
-                  if (value == _passwordActualController.text) {
-                    return 'La nueva contraseña no puede ser igual a la actual.';
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  labelText: 'Nueva contraseña',
-                  prefixIcon: const Icon(Icons.lock_reset_outlined),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _ocultarNueva
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _ocultarNueva = !_ocultarNueva;
-                      });
-                    },
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _passwordNuevaController,
+              enabled: !_guardandoPassword,
+              obscureText: _ocultarNueva,
+              textInputAction: TextInputAction.next,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Ingresa la nueva contraseña.';
+                }
+                if (value.length < 8 ||
+                    !RegExp(r'[A-Za-z]').hasMatch(value) ||
+                    !RegExp(r'[0-9]').hasMatch(value)) {
+                  return 'La contraseña debe tener al menos 8 caracteres, una letra y un número.';
+                }
+                if (value == _passwordActualController.text) {
+                  return 'La nueva contraseña no puede ser igual a la actual.';
+                }
+                return null;
+              },
+              decoration: InputDecoration(
+                labelText: 'Nueva contraseña',
+                prefixIcon: const Icon(Icons.lock_reset_outlined),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _ocultarNueva
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      _ocultarNueva = !_ocultarNueva;
+                    });
+                  },
                 ),
               ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _passwordConfirmacionController,
-                enabled: !_guardandoPassword,
-                obscureText: _ocultarConfirmacion,
-                textInputAction: TextInputAction.done,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Confirma tu nueva contraseña.';
-                  }
-                  if (value != _passwordNuevaController.text) {
-                    return 'Las contraseñas no coinciden.';
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  labelText: 'Confirmar nueva contraseña',
-                  prefixIcon: const Icon(Icons.check_circle_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _ocultarConfirmacion
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _ocultarConfirmacion = !_ocultarConfirmacion;
-                      });
-                    },
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _passwordConfirmacionController,
+              enabled: !_guardandoPassword,
+              obscureText: _ocultarConfirmacion,
+              textInputAction: TextInputAction.done,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Confirma tu nueva contraseña.';
+                }
+                if (value != _passwordNuevaController.text) {
+                  return 'Las contraseñas no coinciden.';
+                }
+                return null;
+              },
+              decoration: InputDecoration(
+                labelText: 'Confirmar nueva contraseña',
+                prefixIcon: const Icon(Icons.check_circle_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _ocultarConfirmacion
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      _ocultarConfirmacion = !_ocultarConfirmacion;
+                    });
+                  },
                 ),
               ),
-              if (_errorPassword != null) ...[
-                const SizedBox(height: 16),
-                _ErrorBanner(mensaje: _errorPassword!),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _guardandoPassword ? null : _guardarPassword,
-                  child: _guardandoPassword
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        )
-                      : const Text('Guardar contraseña'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _guardandoPassword ? null : _cancelarCambioPassword,
-                child: const Text('Cancelar'),
-              ),
+            ),
+            if (_errorPassword != null) ...[
+              const SizedBox(height: 16),
+              _ErrorBanner(mensaje: _errorPassword!),
             ],
-          ),
+            const SizedBox(height: 20),
+            RetroPixelButton(
+              onPressed: _guardandoPassword ? null : _guardarPassword,
+              color: SysQuestColors.gold,
+              textColor: SysQuestColors.dungeonVoid,
+              text: _guardandoPassword
+                  ? 'GUARDANDO...'
+                  : 'GUARDAR CONTRASEÑA',
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _guardandoPassword ? null : _cancelarCambioPassword,
+              child: Text(
+                'CANCELAR',
+                style: SysQuestTypography.caption.copyWith(
+                  color: SysQuestColors.parchmentText,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -652,17 +811,23 @@ class _PerfilAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 76,
-        height: 76,
+        width: 80,
+        height: 80,
         decoration: BoxDecoration(
-          color: AppTheme.superficieElevada,
-          shape: BoxShape.circle,
-          border: Border.all(color: AppTheme.azulTexto, width: 2),
+          color: SysQuestColors.stonePanel,
+          border: Border.all(color: SysQuestColors.gold, width: 3),
+          boxShadow: const [
+            BoxShadow(
+              color: SysQuestColors.shadowBlack,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
-        child: const Icon(
-          Icons.person_outline,
-          color: AppTheme.azulTexto,
-          size: 42,
+        child: const Center(
+          child: PixelIcon(
+            fileName: 'knight_m_idle_anim_f0.png',
+            size: 48,
+          ),
         ),
       ),
     );
@@ -677,9 +842,35 @@ class _DatoPerfil extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(title: Text(label), subtitle: Text(valor)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: SysQuestColors.dungeonVoid.withValues(alpha: 0.5),
+        border: Border.all(color: SysQuestColors.stoneHighlight, width: 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: SysQuestTypography.caption.copyWith(
+              color: SysQuestColors.parchmentText.withValues(alpha: 0.8),
+            ),
+          ),
+          Flexible(
+            child: Text(
+              valor,
+              style: SysQuestTypography.caption.copyWith(
+                color: SysQuestColors.gold,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -695,7 +886,7 @@ class _ErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.rojoDanio.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppTheme.rojoDanio.withValues(alpha: 0.55)),
       ),
       child: Row(

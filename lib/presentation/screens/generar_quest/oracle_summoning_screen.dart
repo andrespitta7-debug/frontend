@@ -177,8 +177,7 @@ class _OracleSummoningScreenState extends State<OracleSummoningScreen> {
       },
       child: Scaffold(
         backgroundColor: SysQuestColors.dungeonVoid,
-        body: SafeArea(
-          top: false,
+        body: SizedBox.expand(
           child: DungeonMenuBackdrop(
             isDoorOpen: false,
             child: Center(
@@ -372,3 +371,4 @@ class _OracleSummoningScreenState extends State<OracleSummoningScreen> {
     );
   }
 }
+

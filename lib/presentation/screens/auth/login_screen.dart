@@ -8,7 +8,8 @@ import '../../core/design_system/widgets/retro_panel_box.dart';
 import '../../core/design_system/widgets/retro_pixel_button.dart';
 import '../../core/design_system/widgets/retro_text_field.dart';
 import '../../widgets/dialogo_alerta.dart';
-import '../menu/menu_principal_screen.dart';
+import '../menu/main_hub_screen.dart';
+
 import 'auth_controller.dart';
 import 'registro_screen.dart';
 
@@ -58,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (usuario == null) return;
       Navigator.pushReplacement(
         context,
-        buildRetroRoute(MenuPrincipalScreen(usuario: usuario)),
+        buildRetroRoute(MainHubScreen(usuario: usuario)),
       );
     }
   }
@@ -71,11 +72,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: SysQuestColors.dungeonVoid,
-      body: SafeArea(
-        top: false,
-        child: DungeonMenuBackdrop(
-          isDoorOpen: false,
-          child: Center(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(
+            child: DungeonMenuBackdrop(
+              isDoorOpen: false,
+            ),
+          ),
+          Positioned.fill(
+            child: Center(
             child: SingleChildScrollView(
               padding: EdgeInsets.only(
                 top: topPadding + 16,
@@ -291,8 +297,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
+      ],
+    ),
+  );
   }
 }
 
