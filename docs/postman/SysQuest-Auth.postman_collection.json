@@ -1,0 +1,394 @@
+{
+  "info": {
+    "_postman_id": "736f42ee-e4d3-4696-8058-43cd998d343c",
+    "name": "SysQuest - Auth",
+    "description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "58601306",
+    "_collection_link": "https://go.postman.co/collection/58601306-736f42ee-e4d3-4696-8058-43cd998d343c?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Register - nombre_usuario duplicado (409)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"test3@example.com\",\r\n  \"password\": \"Test1234\",\r\n  \"nombre\": \"Test3\",\r\n  \"apellido\": \"User3\",\r\n  \"nombre_usuario\": \"test_user_1\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/register",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Register - éxito (201)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"test2@example.com\",\r\n  \"password\": \"Test1234\",\r\n  \"nombre\": \"Test2\",\r\n  \"apellido\": \"User2\",\r\n  \"nombre_usuario\": \"test_user_2\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/register",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Register - email duplicado (409)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"test1@example.com\",\r\n  \"password\": \"Test1234\",\r\n  \"nombre\": \"Test4\",\r\n  \"apellido\": \"User4\",\r\n  \"nombre_usuario\": \"test_user_4\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/register",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Register - password débil (400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"test5@example.com\",\r\n  \"password\": \"123\",\r\n  \"nombre\": \"Test5\",\r\n  \"apellido\": \"User5\",\r\n  \"nombre_usuario\": \"test_user_5\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/register",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Register - email inválido (400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"noesunemail\",\r\n  \"password\": \"Test1234\",\r\n  \"nombre\": \"Test6\",\r\n  \"apellido\": \"User6\",\r\n  \"nombre_usuario\": \"test_user_6\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/register",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login - éxito (200)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"test1@example.com\",\r\n  \"password\": \"Test1234\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/login",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login - credenciales incorrectas (401)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"test1@example.com\",\r\n  \"password\": \"WrongPass123\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/login",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login - campos faltantes (400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"test1@example.com\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/login",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login - método no permitido (405)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/login",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Register - método no permitido (405)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "url": {
+          "raw": "https://jctulgfdweeurqbmugot.supabase.co/functions/v1/register",
+          "protocol": "https",
+          "host": [
+            "jctulgfdweeurqbmugot",
+            "supabase",
+            "co"
+          ],
+          "path": [
+            "functions",
+            "v1",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

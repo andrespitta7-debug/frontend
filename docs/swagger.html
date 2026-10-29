@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Swagger UI - SysQuest API</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #fafafa;
+    }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js" crossorigin></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js" crossorigin></script>
+  <script>
+    window.onload = () => {
+      const SUPABASE_URL = "https://jctulgfdweeurqbmugot.supabase.co";
+      const ANON_KEY = "sb_publishable_aFTFNWIufKJlxEBm6GhsUg_2x5-SEp0";
+
+      window.ui = SwaggerUIBundle({
+        url: SUPABASE_URL + "/rest/v1/",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        layout: "StandaloneLayout",
+        requestInterceptor: (req) => {
+          req.headers["apikey"] = ANON_KEY;
+          req.headers["Authorization"] = "Bearer " + ANON_KEY;
+          return req;
+        }
+      });
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # ========================================================
+  # 1. FRONTEND: Aplicación Flutter Web servida con Nginx
+  # ========================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - SUPABASE_URL=${SUPABASE_URL:-http://localhost:54321}
+        - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+    container_name: sysquest_frontend
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - kong
+    networks:
+      - sysquest_network
+
+  # ========================================================
+  # 2. BASE DE DATOS: PostgreSQL 15 con extensiones de Supabase
+  # ========================================================
+  db:
+    image: public.ecr.aws/supabase/postgres:15.1.0.147
+    container_name: sysquest_postgres_db
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    ports:
+      - "54322:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+    networks:
+      - sysquest_network
+
+  # ========================================================
+  # 3. AUTENTICACIÓN: Supabase Auth (GoTrue - Tokens JWT)
+  # ========================================================
+  auth:
+    image: public.ecr.aws/supabase/gotrue:v2.130.0
+    container_name: sysquest_auth_gotrue
+    depends_on:
+      - db
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${SUPABASE_URL:-http://localhost:54321}/auth/v1
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres?sslmode=disable
+      GOTRUE_SITE_URL: http://localhost:8080
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_DISABLE_SIGNUP: false
+    restart: unless-stopped
+    networks:
+      - sysquest_network
+
+  # ========================================================
+  # 4. REST API: PostgREST (Convierte PostgreSQL a OpenAPI/REST)
+  # ========================================================
+  rest:
+    image: public.ecr.aws/supabase/postgrest:v11.2.0
+    container_name: sysquest_rest_postgrest
+    depends_on:
+      - db
+    environment:
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres?sslmode=disable
+      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_BUILTIN_AUTH: false
+    restart: unless-stopped
+    networks:
+      - sysquest_network
+
+  # ========================================================
+  # 5. API GATEWAY: Kong (Enrutador inverso unificado)
+  # ========================================================
+  kong:
+    image: public.ecr.aws/supabase/kong:2.8.1
+    container_name: sysquest_kong_gateway
+    depends_on:
+      - auth
+      - rest
+    ports:
+      - "54321:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    volumes:
+      - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
+    restart: unless-stopped
+    networks:
+      - sysquest_network
+
+networks:
+  sysquest_network:
+    driver: bridge
+
+volumes:
+  pgdata:
