@@ -943,7 +943,7 @@ class _CombateContenido extends StatelessWidget {
                                 },
                                 child: BattleFighterWidget(
                                   key: playerFighterKey,
-                                  characterPrefix: 'knight_m',
+                                  characterPrefix: controller.heroePrefijoActual,
                                   weaponSprite: controller.armaEquipada,
                                   isEnemy: false,
                                   isWalking: false,
@@ -952,7 +952,7 @@ class _CombateContenido extends StatelessWidget {
                               )
                             : BattleFighterWidget(
                                 key: playerFighterKey,
-                                characterPrefix: 'knight_m',
+                                characterPrefix: controller.heroePrefijoActual,
                                 weaponSprite: controller.armaEquipada,
                                 isEnemy: false,
                                 isWalking:
@@ -1059,6 +1059,7 @@ class _CombateContenido extends StatelessWidget {
                   left: 8,
                   child: _BarraVidaHeroeCompacta(
                     vida: controller.vidaJugador,
+                    vidaMaxima: controller.vidaJugadorMax,
                   ),
                 ),
 
@@ -1261,9 +1262,11 @@ class _CombateContenido extends StatelessWidget {
 
 class _BarraVidaHeroeCompacta extends StatelessWidget {
   final int vida;
+  final int vidaMaxima;
 
   const _BarraVidaHeroeCompacta({
     required this.vida,
+    this.vidaMaxima = 100,
   });
 
   @override
@@ -1286,7 +1289,7 @@ class _BarraVidaHeroeCompacta extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'HÉROE $vida/100',
+            'HÉROE $vida/$vidaMaxima',
             style: SysQuestTypography.caption.copyWith(
               color: AppTheme.verdeVida,
               fontSize: 7,
@@ -1296,7 +1299,7 @@ class _BarraVidaHeroeCompacta extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.zero,
             child: LinearProgressIndicator(
-              value: (vida / 100).clamp(0.0, 1.0),
+              value: vidaMaxima > 0 ? (vida / vidaMaxima).clamp(0.0, 1.0) : 0.0,
               color: AppTheme.verdeVida,
               backgroundColor: SysQuestColors.stonePanel,
               minHeight: 6,
@@ -1998,51 +2001,103 @@ class _DialogoEleccionPerks extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              ...perks.map((perk) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: InkWell(
-                  onTap: () => onSeleccionar(perk),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: SysQuestColors.dungeonVoid,
-                      border: Border.all(
-                        color: SysQuestColors.stoneHighlight,
-                        width: 2,
+              ...perks.map((perk) {
+                final String tagLabel;
+                final Color tagColor;
+                if (perk.isEvolution) {
+                  tagLabel = '[SINERGIA]';
+                  tagColor = SysQuestColors.gold;
+                } else {
+                  switch (perk.category) {
+                    case PerkCategory.weapon:
+                      tagLabel = '[ARMA]';
+                      tagColor = const Color(0xFFFF7A45);
+                      break;
+                    case PerkCategory.armor:
+                      tagLabel = '[ARMADURA]';
+                      tagColor = const Color(0xFF4DEEEA);
+                      break;
+                    case PerkCategory.relic:
+                      tagLabel = '[RELIQUIA]';
+                      tagColor = const Color(0xFF68D391);
+                      break;
+                  }
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    onTap: () => onSeleccionar(perk),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: SysQuestColors.dungeonVoid,
+                        border: Border.all(
+                          color: perk.isEvolution
+                              ? SysQuestColors.gold
+                              : SysQuestColors.stoneHighlight,
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          PixelIcon(fileName: perk.sprite, size: 30),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: tagColor.withValues(alpha: 0.15),
+                                        border: Border.all(
+                                            color: tagColor, width: 1),
+                                      ),
+                                      child: Text(
+                                        tagLabel,
+                                        style:
+                                            SysQuestTypography.caption.copyWith(
+                                          color: tagColor,
+                                          fontSize: 6.5,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        perk.nombre,
+                                        style: SysQuestTypography.h3.copyWith(
+                                          color: SysQuestColors.gold,
+                                          fontSize: 9,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  perk.descripcion,
+                                  style: SysQuestTypography.caption.copyWith(
+                                    color: SysQuestColors.parchmentText,
+                                    fontSize: 7.5,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        PixelIcon(fileName: perk.sprite, size: 30),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                perk.nombre,
-                                style: SysQuestTypography.h3.copyWith(
-                                  color: SysQuestColors.gold,
-                                  fontSize: 9,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                perk.descripcion,
-                                style: SysQuestTypography.caption.copyWith(
-                                  color: SysQuestColors.parchmentText,
-                                  fontSize: 7.5,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                ),
-              )),
+                );
+              }),
             ],
           ),
         ),

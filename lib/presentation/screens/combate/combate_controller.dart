@@ -94,7 +94,11 @@ class CombateController extends ChangeNotifier {
   final List<RoguelitePerk> _activePerks = [];
   List<RoguelitePerk> get activePerks => List.unmodifiable(_activePerks);
   List<RoguelitePerk>? perksParaElegir;
-  String armaEquipada = 'weapon_knight_sword.png';
+  String armaEquipada = 'weapon_regular_sword.png';
+  String _heroePrefijoActual = 'knight_m';
+  String get heroePrefijoActual => _heroePrefijoActual;
+  int vidaJugadorMax = 100;
+  bool Function()? randomDodgeCheck;
 
   int vidaJugador = 100;
   int vidaEnemigo = 30;
@@ -133,11 +137,22 @@ class CombateController extends ChangeNotifier {
     if (perk.weaponSprite != null) {
       armaEquipada = perk.weaponSprite!;
     }
-    if (perk.id == 'alchemical_refill') {
+    if (perk.heroPrefixOverride != null) {
+      _heroePrefijoActual = perk.heroPrefixOverride!;
+    }
+    if (perk.id == 'titan_vitality') {
+      vidaJugadorMax += 25;
+      vidaJugador = (vidaJugador + 25).clamp(0, vidaJugadorMax);
+      _agregarNarrativa(
+        '[PERK] 🧪 ¡Elixir de Titán aumentó tu vida máxima a $vidaJugadorMax HP y recuperaste +25 HP!',
+        tipo: BattleLogType.healOrBuff,
+      );
+    }
+    if (perk.id == 'oracle_essence' || perk.id == 'alchemical_refill') {
       _wildcards[TipoWildcard.pista] = (_wildcards[TipoWildcard.pista] ?? 0) + 1;
       _wildcards[TipoWildcard.cincuentaCincuenta] = (_wildcards[TipoWildcard.cincuentaCincuenta] ?? 0) + 1;
       _agregarNarrativa(
-        '[PERK] 🧪 ¡Recarga Alquímica restauró tus comodines!',
+        '[PERK] 🧪 ¡Esencia del Oráculo restauró tus comodines!',
         tipo: BattleLogType.oracleHint,
       );
     }
@@ -309,6 +324,8 @@ class CombateController extends ChangeNotifier {
     resultadoUltimoTurno = null;
     mensajeUltimoTurno = null;
     vidaJugador = 100;
+    vidaJugadorMax = 100;
+    _heroePrefijoActual = 'knight_m';
     _score = 0;
     _enemigosDerrotados = 0;
     _ronda = 1;
@@ -323,7 +340,7 @@ class CombateController extends ChangeNotifier {
 
     _activePerks.clear();
     perksParaElegir = null;
-    armaEquipada = 'weapon_knight_sword.png';
+    armaEquipada = 'weapon_regular_sword.png';
     _questTitle = questTitle.trim().isNotEmpty ? questTitle.trim() : 'Incursión en la Mazmorra';
     _resolvedTopic = resolvedTopic.trim().isNotEmpty ? resolvedTopic.trim() : 'Conocimiento Arcano';
 
@@ -435,13 +452,43 @@ class CombateController extends ChangeNotifier {
     if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _modoTemerarioActivo) {
       danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.3).round();
     }
-    // Perk: Crimson Edge (+35% de daño al acertar)
-    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'crimson_edge')) {
+    // Perk: Mandoble Real (+20% daño base)
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'knight_broadsword')) {
+      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.20).round();
+    }
+    // Perk: Katana de Compilación (+25% de daño y aceleración)
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'swift_katana' || p.id == 'compile_frenzy')) {
+      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.25).round();
+    }
+    // Perk: Estoque Carmesí (+35% de daño al acertar)
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'vampire_rapier' || p.id == 'crimson_edge')) {
       danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.35).round();
     }
-    // Perk: Compile Frenzy (+25% de daño y aceleración)
-    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'compile_frenzy')) {
-      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.25).round();
+    // Perk: Hacha Rompe-Escudos (+50% daño contra jefes)
+    final bool esJefe = encuentroActual?.esJefe == true;
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && esJefe && _activePerks.any((p) => p.id == 'boss_cleaver')) {
+      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.50).round();
+      _agregarNarrativa(
+        '[PERK] 🪓 ¡Hacha Rompe-Escudos destruyó la defensa del Jefe (+50% daño)!',
+        tipo: BattleLogType.playerHit,
+      );
+    }
+    // Perk: Excalibur Dorada (SINERGIA: +65% daño y crítico garantizado)
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'golden_excalibur')) {
+      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.65).round();
+    }
+    // Perk: Brebaje Berserker (Daño x2 cuando tu vida está por debajo del 50%)
+    final bool vidaBajaBerserker = vidaJugador < (vidaJugadorMax / 2);
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && vidaBajaBerserker && _activePerks.any((p) => p.id == 'berserker_brew')) {
+      danioAlEnemigoFinal *= 2;
+      _agregarNarrativa(
+        '[PERK] 🧪 ¡Brebaje Berserker activo (Vida < 50%)! Daño duplicado.',
+        tipo: BattleLogType.playerHit,
+      );
+    }
+    // Perk: Moneda Maldita (+40% daño total)
+    if (esAciertoOCritico && danioAlEnemigoFinal > 0 && _activePerks.any((p) => p.id == 'greed_coin')) {
+      danioAlEnemigoFinal = (danioAlEnemigoFinal * 1.40).round();
     }
     // Multiplicador de golpe doble (wildcard)
     if (aplicaGolpeDoble && resultado.danoAlEnemigo > 0) {
@@ -450,28 +497,64 @@ class CombateController extends ChangeNotifier {
 
     var danioAlJugadorFinal = resultado.danoAlJugador +
         (_modoTemerarioActivo && resultado.danoAlJugador > 0 ? 5 : 0);
-    // Perk: Dwarven Armor (Reduce un 40% el daño recibido al fallar)
-    if (danioAlJugadorFinal > 0 && _activePerks.any((p) => p.id == 'dwarven_armor')) {
-      final mitigado = (danioAlJugadorFinal * 0.40).round();
+
+    // Perk: Moneda Maldita (enemigos hacen +10% de daño)
+    if (danioAlJugadorFinal > 0 && _activePerks.any((p) => p.id == 'greed_coin')) {
+      danioAlJugadorFinal = (danioAlJugadorFinal * 1.10).round();
+    }
+    // Perk: Armadura de Paladín (reduce 25% el daño recibido)
+    if (danioAlJugadorFinal > 0 && _activePerks.any((p) => p.id == 'paladin_helm')) {
+      final mitigado = (danioAlJugadorFinal * 0.25).round();
       danioAlJugadorFinal = math.max(1, danioAlJugadorFinal - mitigado);
       _agregarNarrativa(
-        '[PERK] 🛡️ ¡Armadura Enana mitigó -$mitigado de daño!',
+        '[PERK] 🛡️ ¡Armadura de Paladín absorbió -$mitigado de daño!',
+        tipo: BattleLogType.healOrBuff,
+      );
+    }
+    // Perk: Coraza Rúnica Enana (reduce 45% el daño recibido al fallar / 40% legacy)
+    if (danioAlJugadorFinal > 0 && _activePerks.any((p) => p.id == 'dwarven_plate' || p.id == 'dwarven_armor')) {
+      final reduccion = _activePerks.any((p) => p.id == 'dwarven_plate') ? 0.45 : 0.40;
+      final mitigado = (danioAlJugadorFinal * reduccion).round();
+      danioAlJugadorFinal = math.max(1, danioAlJugadorFinal - mitigado);
+      _agregarNarrativa(
+        '[PERK] 🛡️ ¡Coraza Rúnica Enana mitigó -$mitigado de daño!',
+        tipo: BattleLogType.healOrBuff,
+      );
+    }
+    // Perk: Manto Élfico (25% probabilidad de esquivar contraataques)
+    if (danioAlJugadorFinal > 0 && _activePerks.any((p) => p.id == 'elven_cloak')) {
+      final esquivo = randomDodgeCheck != null ? randomDodgeCheck!() : (math.Random().nextDouble() < 0.25);
+      if (esquivo) {
+        danioAlJugadorFinal = 0;
+        _agregarNarrativa(
+          '[PERK] 🍃 ¡Manto Élfico! Esquivaste con gracia el contraataque enemigo.',
+          tipo: BattleLogType.healOrBuff,
+        );
+      }
+    }
+
+    vidaEnemigo = (vidaEnemigo - danioAlEnemigoFinal).clamp(0, 999);
+    vidaJugador = (vidaJugador - danioAlJugadorFinal).clamp(0, vidaJugadorMax);
+
+    if (aplicaRoboDeVida && esAciertoOCritico) {
+      vidaJugador = (vidaJugador + 10).clamp(0, vidaJugadorMax);
+    }
+
+    // Perk: Estoque Carmesí (roba +6 HP al acertar)
+    if (esAciertoOCritico && _activePerks.any((p) => p.id == 'vampire_rapier')) {
+      vidaJugador = (vidaJugador + 6).clamp(0, vidaJugadorMax);
+      _agregarNarrativa(
+        '[PERK] 🩸 ¡Estoque Carmesí drenó +6 HP! (Vida: $vidaJugador/$vidaJugadorMax)',
         tipo: BattleLogType.healOrBuff,
       );
     }
 
-    vidaEnemigo = (vidaEnemigo - danioAlEnemigoFinal).clamp(0, 999);
-    vidaJugador = (vidaJugador - danioAlJugadorFinal).clamp(0, 999);
-
-    if (aplicaRoboDeVida && esAciertoOCritico) {
-      vidaJugador = (vidaJugador + 10).clamp(0, 100);
-    }
-
-    // Perk: Academic Vampirism (+8 HP al acertar)
-    if (esAciertoOCritico && _activePerks.any((p) => p.id == 'academic_vampirism')) {
-      vidaJugador = (vidaJugador + 8).clamp(0, 100);
+    // Perk: Sangre Regenerativa / Vampirismo Académico (+10 HP / +8 HP al acertar)
+    if (esAciertoOCritico && _activePerks.any((p) => p.id == 'troll_blood' || p.id == 'academic_vampirism')) {
+      final curacion = _activePerks.any((p) => p.id == 'troll_blood') ? 10 : 8;
+      vidaJugador = (vidaJugador + curacion).clamp(0, vidaJugadorMax);
       _agregarNarrativa(
-        '[PERK] 🩸 ¡Vampirismo Académico absorbió +8 HP! (Vida: $vidaJugador/100)',
+        '[PERK] 🩸 ¡Sangre Regenerativa recuperó +$curacion HP! (Vida: $vidaJugador/$vidaJugadorMax)',
         tipo: BattleLogType.healOrBuff,
       );
     }
@@ -555,6 +638,14 @@ class CombateController extends ChangeNotifier {
       _finalizarPartida(gano: false);
     } else if (vidaEnemigo <= 0) {
       _enemigosDerrotados += 1;
+      // Perk: Túnica de Archimago (Regenera +1 comodín cada 2 enemigos derrotados)
+      if (_activePerks.any((p) => p.id == 'archmage_robe') && _enemigosDerrotados % 2 == 0) {
+        _otorgarWildcardAleatoria();
+        _agregarNarrativa(
+          '[PERK] 🔮 ¡Túnica de Archimago sintetizó un comodín arcano por tus victorias!',
+          tipo: BattleLogType.oracleHint,
+        );
+      }
       if (_enemigosDerrotados % 3 == 0) {
         _ronda += 1;
         _score += 500;
@@ -570,8 +661,17 @@ class CombateController extends ChangeNotifier {
       final hayMasEncuentros = _indiceActual + 1 < _encuentros.length;
       if (hayMasEncuentros) {
         encuentroSuperado = true;
-        // Ofrecer 3 mejoras aleatorias estilo Vampire Survivors
-        final perksDisponibles = List<RoguelitePerk>.from(RoguelitePerk.allPerks)..shuffle();
+        // Ofrecer 3 mejoras aleatorias estilo Vampire Survivors (con soporte de sinergia de evolución)
+        final tieneArma = _activePerks.any((p) => p.category == PerkCategory.weapon);
+        final tieneReliquia = _activePerks.any((p) => p.category == PerkCategory.relic);
+        final puedeEvolucionar = tieneArma && tieneReliquia;
+
+        final perksDisponibles = RoguelitePerk.allPerks.where((p) {
+          if (_activePerks.any((active) => active.id == p.id)) return false;
+          if (p.isEvolution && !puedeEvolucionar) return false;
+          return true;
+        }).toList()..shuffle();
+
         perksParaElegir = perksDisponibles.take(3).toList();
         if (_enemigosDerrotados % 3 != 0) {
           final caso = _enemigosDerrotados % 3;
@@ -763,16 +863,16 @@ class CombateController extends ChangeNotifier {
     if (temerario) {
       _modoTemerarioActivo = true;
       if (vidaJugador > 25) {
-        vidaJugador = (vidaJugador - 10).clamp(1, 100);
+        vidaJugador = (vidaJugador - 10).clamp(1, vidaJugadorMax);
       }
       _agregarNarrativa(
           '[CRITICO] 💀 ¡Pacto Temerario aceptado! Daño +30%, Recompensa +200 pts, Enemigos +5 daño.',
           tipo: BattleLogType.healOrBuff);
     } else {
       _modoTemerarioActivo = false;
-      vidaJugador = (vidaJugador + 25).clamp(0, 100);
+      vidaJugador = (vidaJugador + 25).clamp(0, vidaJugadorMax);
       _agregarNarrativa(
-          '[COMODIN] 🛡️ Descansaste en la hoguera: recuperas +25 HP (Vida: $vidaJugador/100).',
+          '[COMODIN] 🛡️ Descansaste en la hoguera: recuperas +25 HP (Vida: $vidaJugador/$vidaJugadorMax).',
           tipo: BattleLogType.healOrBuff);
     }
 
@@ -795,7 +895,7 @@ class CombateController extends ChangeNotifier {
   void resolverEventoDecision(String codigoAccion) {
     switch (codigoAccion) {
       case 'estudiar_codice':
-        vidaJugador = (vidaJugador - 10).clamp(1, 100);
+        vidaJugador = (vidaJugador - 10).clamp(1, vidaJugadorMax);
         _score += 100;
         _otorgarWildcardAleatoria();
         _agregarNarrativa(
@@ -803,13 +903,13 @@ class CombateController extends ChangeNotifier {
             tipo: BattleLogType.healOrBuff);
         break;
       case 'destruir_codice':
-        vidaJugador = (vidaJugador + 15).clamp(0, 100);
+        vidaJugador = (vidaJugador + 15).clamp(0, vidaJugadorMax);
         _agregarNarrativa(
-            '[COMODIN] 🛡️ Purificaste el Códice Arcano: recuperas +15 HP (Vida: $vidaJugador/100).',
+            '[COMODIN] 🛡️ Purificaste el Códice Arcano: recuperas +15 HP (Vida: $vidaJugador/$vidaJugadorMax).',
             tipo: BattleLogType.healOrBuff);
         break;
       case 'mercader_poder':
-        vidaJugador = (vidaJugador - 15).clamp(1, 100);
+        vidaJugador = (vidaJugador - 15).clamp(1, vidaJugadorMax);
         _score += 150;
         _wildcards[TipoWildcard.golpeDoble] =
             (_wildcards[TipoWildcard.golpeDoble] ?? 0) + 1;
@@ -818,9 +918,9 @@ class CombateController extends ChangeNotifier {
             tipo: BattleLogType.healOrBuff);
         break;
       case 'mercader_curar':
-        vidaJugador = (vidaJugador + 20).clamp(0, 100);
+        vidaJugador = (vidaJugador + 20).clamp(0, vidaJugadorMax);
         _agregarNarrativa(
-            '[COMODIN] 💚 Bebiste el Elixir del Mercader: recuperas +20 HP (Vida: $vidaJugador/100).',
+            '[COMODIN] 💚 Bebiste el Elixir del Mercader: recuperas +20 HP (Vida: $vidaJugador/$vidaJugadorMax).',
             tipo: BattleLogType.healOrBuff);
         break;
     }

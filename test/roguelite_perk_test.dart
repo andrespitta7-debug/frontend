@@ -50,17 +50,64 @@ class _FakeQuestGenRepo implements QuestGeneratorRepository {
 }
 
 void main() {
-  group('RoguelitePerk', () {
-    test('allPerks contiene los 5 perks requeridos', () {
-      final ids = RoguelitePerk.allPerks.map((p) => p.id).toList();
-      expect(ids, contains('crimson_edge'));
-      expect(ids, contains('academic_vampirism'));
-      expect(ids, contains('compile_frenzy'));
-      expect(ids, contains('alchemical_refill'));
-      expect(ids, contains('dwarven_armor'));
+  group('RoguelitePerk - Catálogo de 15 Perks', () {
+    test('allPerks contiene exactamente los 15 perks requeridos divididos en 3 categorías', () {
+      expect(RoguelitePerk.allPerks.length, 15);
+
+      final armas = RoguelitePerk.allPerks.where((p) => p.category == PerkCategory.weapon).toList();
+      final armaduras = RoguelitePerk.allPerks.where((p) => p.category == PerkCategory.armor).toList();
+      final reliquias = RoguelitePerk.allPerks.where((p) => p.category == PerkCategory.relic).toList();
+
+      expect(armas.length, 6);
+      expect(armaduras.length, 4);
+      expect(reliquias.length, 5);
+
+      // Armas
+      expect(armas.map((p) => p.id), containsAll([
+        'iron_sword',
+        'knight_broadsword',
+        'swift_katana',
+        'vampire_rapier',
+        'boss_cleaver',
+        'golden_excalibur',
+      ]));
+
+      // Armaduras
+      expect(armaduras.map((p) => p.id), containsAll([
+        'paladin_helm',
+        'dwarven_plate',
+        'elven_cloak',
+        'archmage_robe',
+      ]));
+
+      // Reliquias
+      expect(reliquias.map((p) => p.id), containsAll([
+        'troll_blood',
+        'titan_vitality',
+        'oracle_essence',
+        'berserker_brew',
+        'greed_coin',
+      ]));
     });
 
-    test('seleccionarPerk actualiza armaEquipada y aplica recarga alquímica', () async {
+    test('verificación de propiedades de sinergia y sprites de héroe', () {
+      final excalibur = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'golden_excalibur');
+      expect(excalibur.isEvolution, isTrue);
+
+      final paladin = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'paladin_helm');
+      expect(paladin.heroPrefixOverride, 'knight_f');
+
+      final dwarf = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'dwarven_plate');
+      expect(dwarf.heroPrefixOverride, 'dwarf_m');
+
+      final elf = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'elven_cloak');
+      expect(elf.heroPrefixOverride, 'elf_m');
+
+      final archmage = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'archmage_robe');
+      expect(archmage.heroPrefixOverride, 'wizzard_m');
+    });
+
+    test('seleccionarPerk actualiza heroePrefijoActual, armaEquipada y comodines', () async {
       final encuentro = Encuentro(
         idEncuentro: 'e1',
         idQuest: 'q1',
@@ -71,9 +118,6 @@ void main() {
         vidaEnemigo: 100,
         opciones: const [
           OpcionEncuentro(idOpcion: 'o1', idEncuentro: 'e1', letra: 'A', texto: 'A', calidad: 2),
-          OpcionEncuentro(idOpcion: 'o2', idEncuentro: 'e1', letra: 'B', texto: 'B', calidad: 1),
-          OpcionEncuentro(idOpcion: 'o3', idEncuentro: 'e1', letra: 'C', texto: 'C', calidad: 0),
-          OpcionEncuentro(idOpcion: 'o4', idEncuentro: 'e1', letra: 'D', texto: 'D', calidad: 0),
         ],
       );
 
@@ -85,31 +129,36 @@ void main() {
         duracionPausaTurno: Duration.zero,
       );
 
-      await controller.cargarQuest(
-        'q1',
-        'u1',
-        questTitle: 'Castillo de Código',
-        resolvedTopic: 'Estructuras de Datos',
-      );
+      await controller.cargarQuest('q1', 'u1');
 
-      expect(controller.armaEquipada, 'weapon_knight_sword.png');
+      expect(controller.armaEquipada, 'weapon_regular_sword.png');
+      expect(controller.heroePrefijoActual, 'knight_m');
 
-      // Seleccionar Filo Carmesí
-      final crimsonPerk = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'crimson_edge');
-      controller.seleccionarPerk(crimsonPerk);
+      // 1. Equipar Katana
+      final katana = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'swift_katana');
+      controller.seleccionarPerk(katana);
+      expect(controller.armaEquipada, 'weapon_katana.png');
 
-      expect(controller.armaEquipada, 'weapon_red_gem_sword.png');
-      expect(controller.activePerks.length, 1);
+      // 2. Equipar Armadura de Paladín (cambia aspecto a knight_f)
+      final paladin = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'paladin_helm');
+      controller.seleccionarPerk(paladin);
+      expect(controller.heroePrefijoActual, 'knight_f');
 
-      // Seleccionar Recarga Alquímica
-      final refillPerk = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'alchemical_refill');
-      final pistasIniciales = controller.wildcards[TipoWildcard.pista] ?? 0;
-      controller.seleccionarPerk(refillPerk);
+      // 3. Seleccionar Esencia del Oráculo (+1 pista y +1 50/50)
+      final pistasAntes = controller.wildcards[TipoWildcard.pista] ?? 0;
+      final ccAntes = controller.wildcards[TipoWildcard.cincuentaCincuenta] ?? 0;
+      final oracle = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'oracle_essence');
+      controller.seleccionarPerk(oracle);
+      expect(controller.wildcards[TipoWildcard.pista], pistasAntes + 1);
+      expect(controller.wildcards[TipoWildcard.cincuentaCincuenta], ccAntes + 1);
 
-      expect(controller.wildcards[TipoWildcard.pista], pistasIniciales + 1);
+      // 4. Seleccionar Elixir de Titán (+25 vida max y curación)
+      final titan = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'titan_vitality');
+      controller.seleccionarPerk(titan);
+      expect(controller.vidaJugadorMax, 125);
     });
 
-    test('Dwarven Armor reduce 40% el daño recibido al fallar', () async {
+    test('Coraza Rúnica Enana reduce 45% el daño al fallar', () async {
       final encuentro = Encuentro(
         idEncuentro: 'e1',
         idQuest: 'q1',
@@ -133,15 +182,83 @@ void main() {
 
       await controller.cargarQuest('q1', 'u1');
 
-      // Equipar Armadura Enana
-      final armorPerk = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'dwarven_armor');
-      controller.seleccionarPerk(armorPerk);
+      final dwarf = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'dwarven_plate');
+      controller.seleccionarPerk(dwarf);
 
-      // Fallo estándar causa 15 daño. 15 * 0.40 = 6 mitigado -> 9 daño recibido.
-      // 100 - 9 = 91 HP restante.
+      // Daño estándar de contraataque = 15.
+      // 15 * 0.45 = 6.75 -> round = 7 mitigado.
+      // 15 - 7 = 8 recibido -> 100 - 8 = 92 HP restante.
       await controller.elegirOpcion(encuentro.opciones.first);
+      expect(controller.vidaJugador, 92);
+    });
 
-      expect(controller.vidaJugador, 91);
+    test('Manto Élfico permite esquivar contraataque con randomDodgeCheck', () async {
+      final encuentro = Encuentro(
+        idEncuentro: 'e1',
+        idQuest: 'q1',
+        numero: 1,
+        pregunta: '¿Pregunta?',
+        dificultad: 'facil',
+        tipoEncuentro: 'normal',
+        vidaEnemigo: 100,
+        opciones: const [
+          OpcionEncuentro(idOpcion: 'o3', idEncuentro: 'e1', letra: 'C', texto: 'C', calidad: 0),
+        ],
+      );
+
+      final controller = CombateController(
+        _FakeQuestRepo([encuentro]),
+        ResponderEncuentroUseCase(),
+        FinalizarPartidaUseCase(_FakePartidaRepo()),
+        GenerarEncuentrosExtraUseCase(_FakeQuestGenRepo()),
+        duracionPausaTurno: Duration.zero,
+      );
+
+      await controller.cargarQuest('q1', 'u1');
+
+      final elf = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'elven_cloak');
+      controller.seleccionarPerk(elf);
+      controller.randomDodgeCheck = () => true;
+
+      // Fallo pero esquiva el contraataque
+      await controller.elegirOpcion(encuentro.opciones.first);
+      expect(controller.vidaJugador, 100);
+    });
+
+    test('Brebaje Berserker duplica daño cuando vida < 50%', () async {
+      final encuentro = Encuentro(
+        idEncuentro: 'e1',
+        idQuest: 'q1',
+        numero: 1,
+        pregunta: '¿Pregunta?',
+        dificultad: 'facil',
+        tipoEncuentro: 'normal',
+        vidaEnemigo: 100,
+        opciones: const [
+          OpcionEncuentro(idOpcion: 'o1', idEncuentro: 'e1', letra: 'A', texto: 'A', calidad: 2),
+        ],
+      );
+
+      final controller = CombateController(
+        _FakeQuestRepo([encuentro]),
+        ResponderEncuentroUseCase(),
+        FinalizarPartidaUseCase(_FakePartidaRepo()),
+        GenerarEncuentrosExtraUseCase(_FakeQuestGenRepo()),
+        duracionPausaTurno: Duration.zero,
+      );
+
+      await controller.cargarQuest('q1', 'u1');
+
+      final berserker = RoguelitePerk.allPerks.firstWhere((p) => p.id == 'berserker_brew');
+      controller.seleccionarPerk(berserker);
+
+      // Reducir vida por debajo del 50%
+      controller.vidaJugador = 40;
+
+      // Daño calidad 2 base = 25. Berserker x2 = 50.
+      // Vida enemigo: 100 - 50 = 50.
+      await controller.elegirOpcion(encuentro.opciones.first);
+      expect(controller.vidaEnemigo, 50);
     });
   });
 }
