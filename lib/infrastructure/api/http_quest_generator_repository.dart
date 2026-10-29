@@ -244,6 +244,9 @@ class HttpQuestGeneratorRepository implements QuestGeneratorRepository {
               dificultad: encMap['dificultad'] as String,
               tipoEncuentro: encMap['tipo_encuentro'] as String,
               vidaEnemigo: (encMap['vida_enemigo'] as num).toInt(),
+              enemigo: encMap['enemigo'] as String?,
+              codigo: encMap['codigo'] as String?,
+              semanticHint: encMap['semantic_hint'] as String?,
               opciones: opciones,
             ),
           );
@@ -352,6 +355,9 @@ class HttpQuestGeneratorRepository implements QuestGeneratorRepository {
       dificultad: encMap['dificultad'] as String,
       tipoEncuentro: encMap['tipo_encuentro'] as String,
       vidaEnemigo: (encMap['vida_enemigo'] as num).toInt(),
+      enemigo: encMap['enemigo'] as String?,
+      codigo: encMap['codigo'] as String?,
+      semanticHint: encMap['semantic_hint'] as String?,
       opciones: opciones,
     );
   }

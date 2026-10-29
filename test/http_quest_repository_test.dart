@@ -61,6 +61,7 @@ void main() {
           'enemigo': 'Bug del Alcance',
           'pregunta': '¿Para qué sirve una variable en un programa?',
           'codigo': null,
+          'semantic_hint': 'Piensa en una caja etiquetada para almacenar datos.',
           'opciones': [
             {
               'id': 'op-1',
@@ -261,6 +262,7 @@ void main() {
       expect(enc1.tipoEncuentro, equals('normal'));
       expect(enc1.esJefe, isFalse);
       expect(enc1.vidaEnemigo, equals(30));
+      expect(enc1.semanticHint, equals('Piensa en una caja etiquetada para almacenar datos.'));
       expect(enc1.pregunta, equals('¿Para qué sirve una variable en un programa?'));
       expect(enc1.opciones.length, equals(4));
       expect(enc1.opciones[0].letra, equals('A'));

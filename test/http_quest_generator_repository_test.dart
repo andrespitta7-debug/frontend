@@ -61,6 +61,7 @@ void main() {
           'enemigo': 'Goblin del Caso Base',
           'pregunta': '¿Cuál es el error en la función factorial?',
           'codigo': 'int f(int n) { return n * f(n-1); }',
+          'semantic_hint': 'Verifica la condición de parada.',
           'opciones': [
             {
               'id': 'op-uuid-1',
@@ -254,6 +255,7 @@ void main() {
       expect(enc1.tipoEncuentro, equals('normal'));
       expect(enc1.esJefe, isFalse);
       expect(enc1.vidaEnemigo, equals(25));
+      expect(enc1.semanticHint, equals('Verifica la condición de parada.'));
       expect(enc1.opciones.length, equals(4));
       expect(enc1.opciones[0].idOpcion, equals('op-uuid-1'));
       expect(enc1.opciones[0].letra, equals('A'));

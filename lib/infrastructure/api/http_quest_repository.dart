@@ -190,6 +190,9 @@ class HttpQuestRepository implements QuestRepository {
           dificultad: encMap['dificultad'] as String? ?? 'facil',
           tipoEncuentro: encMap['tipo_encuentro'] as String? ?? 'normal',
           vidaEnemigo: (encMap['vida_enemigo'] as num).toInt(),
+          enemigo: encMap['enemigo'] as String?,
+          codigo: encMap['codigo'] as String?,
+          semanticHint: encMap['semantic_hint'] as String?,
           opciones: opciones,
         ),
       );

@@ -12,6 +12,7 @@ import '../../../domain/usecases/generar_encuentros_extra_usecase.dart';
 import '../../../domain/usecases/responder_encuentro_usecase.dart';
 import '../../../domain/entities/wildcard.dart';
 import '../../../domain/entities/visual_scene.dart';
+import '../../core/design_system/utils/text_sanitizer.dart';
 
 enum BattleLogType {
   narrative,
@@ -219,6 +220,8 @@ class CombateController extends ChangeNotifier {
       tipoEncuentro: enemigo.tipoEncuentro,
       vidaEnemigo: enemigo.vidaEnemigo,
       enemigo: enemigo.enemigo,
+      codigo: pregunta.codigo,
+      semanticHint: pregunta.semanticHint,
       opciones: pregunta.opciones,
     );
   }
@@ -829,10 +832,16 @@ class CombateController extends ChangeNotifier {
             tipo: BattleLogType.healOrBuff);
         break;
       case TipoWildcard.pista:
-        _pistaActiva = _generarPistaLocal();
+        final pregunta = _preguntaActiva ?? _encuentros[_indiceActual];
+        final hint = pregunta.semanticHint?.trim();
+        final textoPista = (hint != null && hint.isNotEmpty)
+            ? sanitizeRetroText(hint)
+            : _generarPistaLocal();
+        _pistaActiva = textoPista;
         _agregarNarrativa(
-            '[COMODIN] 💡 Consultaste al Oráculo para obtener una pista.',
-            tipo: BattleLogType.oracleHint);
+          '[ORACULO] Pista revelada: $textoPista',
+          tipo: BattleLogType.oracleHint,
+        );
         break;
     }
 
@@ -852,13 +861,7 @@ class CombateController extends ChangeNotifier {
   }
 
   String _generarPistaLocal() {
-    final pregunta = _preguntaActiva ?? _encuentros[_indiceActual];
-    return 'La respuesta correcta tiene aproximadamente ${_longitudRespuesta(pregunta)} caracteres.';
-  }
-
-  int _longitudRespuesta(Encuentro pregunta) {
-    final correcta = pregunta.opciones.firstWhere((o) => o.calidad == 2);
-    return correcta.texto.length;
+    return 'El Oráculo está meditando... parece que la respuesta está relacionada con los conceptos de la pregunta, pero no puedo ver más allá.';
   }
 
   void _otorgarWildcardAleatoria() {

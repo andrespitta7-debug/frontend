@@ -451,6 +451,62 @@ void main() {
       expect(controller.roboDeVidaActivo, isFalse);
     });
 
+    test('pista usa semanticHint cuando está disponible, lo sanitiza y registra en el historial', () async {
+      final encuentroConHint = Encuentro(
+        idEncuentro: 'enc-hint',
+        idQuest: 'q-1',
+        numero: 1,
+        pregunta: 'Pregunta de prueba',
+        dificultad: 'facil',
+        tipoEncuentro: 'normal',
+        vidaEnemigo: 50,
+        semanticHint: '💡 Esta es una pista conceptual sin spoiler.',
+        opciones: [opcionCritica],
+      );
+      final repoQuest = FakeQuestRepository([encuentroConHint]);
+      final controller = CombateController(
+        repoQuest,
+        ResponderEncuentroUseCase(),
+        FinalizarPartidaUseCase(FakePartidaRepository()),
+        GenerarEncuentrosExtraUseCase(FakeQuestGeneratorRepository()),
+        duracionPausaTurno: Duration.zero,
+      );
+      await controller.cargarQuest('q-1', 'u-1');
+
+      await controller.usarWildcard(TipoWildcard.pista);
+      expect(controller.pistaActiva, equals('Esta es una pista conceptual sin spoiler.'));
+      expect(controller.historialNarrativo.first.type, equals(BattleLogType.oracleHint));
+      expect(controller.historialNarrativo.first.message, equals('[ORACULO] Pista revelada: Esta es una pista conceptual sin spoiler.'));
+    });
+
+    test('pista usa fallback seguro cuando semanticHint es nulo o vacío', () async {
+      final encuentroSinHint = Encuentro(
+        idEncuentro: 'enc-nohint',
+        idQuest: 'q-1',
+        numero: 1,
+        pregunta: 'Pregunta sin pista',
+        dificultad: 'facil',
+        tipoEncuentro: 'normal',
+        vidaEnemigo: 50,
+        semanticHint: null,
+        opciones: [opcionCritica],
+      );
+      final repoQuest = FakeQuestRepository([encuentroSinHint]);
+      final controller = CombateController(
+        repoQuest,
+        ResponderEncuentroUseCase(),
+        FinalizarPartidaUseCase(FakePartidaRepository()),
+        GenerarEncuentrosExtraUseCase(FakeQuestGeneratorRepository()),
+        duracionPausaTurno: Duration.zero,
+      );
+      await controller.cargarQuest('q-1', 'u-1');
+
+      await controller.usarWildcard(TipoWildcard.pista);
+      expect(controller.pistaActiva, contains('El Oráculo está meditando'));
+      expect(controller.historialNarrativo.first.type, equals(BattleLogType.oracleHint));
+      expect(controller.historialNarrativo.first.message, contains('[ORACULO] Pista revelada: El Oráculo está meditando'));
+    });
+
     test('cada 3 enemigos derrotados se otorga 1 wildcard', () async {
       final e2 = Encuentro(
         idEncuentro: 'enc-2', idQuest: 'q-1', numero: 2, pregunta: 'P', dificultad: 'facil', tipoEncuentro: 'normal', vidaEnemigo: 50,

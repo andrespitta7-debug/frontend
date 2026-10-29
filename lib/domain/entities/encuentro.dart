@@ -10,6 +10,7 @@ class Encuentro {
   final int vidaEnemigo;
   final String? enemigo;
   final String? codigo;
+  final String? semanticHint;
   final List<OpcionEncuentro> opciones; // siempre 4
 
   const Encuentro({
@@ -22,6 +23,7 @@ class Encuentro {
     required this.vidaEnemigo,
     this.enemigo,
     this.codigo,
+    this.semanticHint,
     required this.opciones,
   });
 
