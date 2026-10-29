@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/design_system/widgets/pixel_icon.dart';
 import '../../theme/app_theme.dart';
 import '../../../domain/entities/wildcard.dart';
 import 'mercader_tienda_dialog.dart';
@@ -108,7 +109,7 @@ class _MapaMundo2DScreenState extends State<MapaMundo2DScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                const Icon(Icons.stars, color: AppTheme.doradoCritico, size: 20),
+                const PixelIcon(fileName: 'coin_anim_f0.png', size: 18),
                 const SizedBox(width: 4),
                 Text(
                   '1/5 Nodos',

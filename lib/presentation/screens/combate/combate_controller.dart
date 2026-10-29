@@ -404,7 +404,10 @@ class CombateController extends ChangeNotifier {
       resolvedTopic: _resolvedTopic,
     );
 
-    _setMensajeNarrativo(_consumirFragmentoNarrativo('intro'));
+    final intro = _consumirFragmentoNarrativo('intro');
+    if (intro != null) {
+      _agregarNarrativa(intro, tipo: BattleLogType.narrative);
+    }
     cargando = false;
     notifyListeners();
   }

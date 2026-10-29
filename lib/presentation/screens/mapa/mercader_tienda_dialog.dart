@@ -307,7 +307,7 @@ class _ArticuloMercader extends StatelessWidget {
               fit: BoxFit.contain,
               filterQuality: FilterQuality.none,
               errorBuilder: (_, _, _) => const Icon(
-                Icons.auto_awesome,
+                Icons.bolt,
                 color: SysQuestColors.gold,
                 size: 16,
               ),

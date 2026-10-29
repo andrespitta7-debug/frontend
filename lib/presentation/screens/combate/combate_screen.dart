@@ -60,6 +60,7 @@ class _CombateScreenState extends State<CombateScreen>
   late final Animation<double> _portalDropAnimation;
   late final AnimationController _corridorScrollController;
   Timer? _arenaPhaseTimer;
+  bool _introDropIniciado = false;
 
   CombateController? _controller;
   ResultadoCombate? _resultadoMostrado;
@@ -110,12 +111,6 @@ class _CombateScreenState extends State<CombateScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
-    _portalDropController.forward();
-    _arenaPhaseTimer = Timer(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        _iniciarWalkingCorridor();
-      }
-    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = context.read<CombateController>();
@@ -133,6 +128,18 @@ class _CombateScreenState extends State<CombateScreen>
         questTitle: widget.questCompleta?.questTitle ?? 'Incursión en la Mazmorra',
         resolvedTopic: widget.questCompleta?.resolvedTopic ?? 'Conocimiento Arcano',
       );
+    });
+  }
+
+  void _iniciarIntroDrop() {
+    if (_introDropIniciado || !mounted) return;
+    _introDropIniciado = true;
+    _portalDropController.forward(from: 0.0);
+    _arenaPhaseTimer?.cancel();
+    _arenaPhaseTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        _iniciarWalkingCorridor();
+      }
     });
   }
 
@@ -157,6 +164,10 @@ class _CombateScreenState extends State<CombateScreen>
   void _detectarCambioDeEstado() {
     final controller = _controller;
     if (controller == null) return;
+
+    if (!controller.cargando && controller.encuentroActual != null && !_introDropIniciado) {
+      _iniciarIntroDrop();
+    }
 
     final evento = controller.eventoActivo;
     if (evento != null && !_eventoModalAbierto && mounted) {
@@ -349,6 +360,12 @@ class _CombateScreenState extends State<CombateScreen>
             );
           }
 
+          if (!_introDropIniciado) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _iniciarIntroDrop();
+            });
+          }
+
           return AnimatedBuilder(
             animation: Listenable.merge([
               _sacudidaPantalla,
@@ -489,8 +506,6 @@ class _CombateScreenState extends State<CombateScreen>
                   onPressed: () async {
                     Navigator.of(dialogContext).pop();
                     await controller.retirarse();
-                    if (!mounted) return;
-                    Navigator.of(this.context).pop();
                   },
                   icon: const Icon(Icons.exit_to_app),
                   label: const Text('Retirarse de la run'),
@@ -847,19 +862,6 @@ class _CombateContenido extends StatelessWidget {
             controller.seleccionarPerk(perk);
             onPerkSeleccionado();
           },
-        ),
-      );
-    } else if (controller.mensajeNarrativoActual != null) {
-      return SafeArea(
-        top: false,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: _PanelNarrativo(
-              texto: controller.mensajeNarrativoActual!,
-              onContinuar: onDismissNarrativa,
-            ),
-          ),
         ),
       );
     } else if (controller.encuentroSuperado) {
@@ -1559,7 +1561,7 @@ class _RondaSuperada extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.auto_awesome, color: AppTheme.doradoCritico, size: 48),
+          const PixelIcon(fileName: 'chest_full_open_anim_f0.png', size: 40),
           const SizedBox(height: 8),
           Text(
             '¡RONDA $rondaActual SUPERADA!',
@@ -1683,6 +1685,14 @@ class _FinCombate extends StatelessWidget {
         ),
         if (!guardando) ...[
           const SizedBox(height: 20),
+          RetroPixelButton(
+            text: 'VOLVER AL HUB',
+            color: SysQuestColors.stonePanel,
+            textColor: SysQuestColors.gold,
+            leadingSpriteFile: 'doors_leaf_open.png',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(height: 12),
           ElevatedButton(
             onPressed: onVolverAJugar,
             child: const Text('Volver a jugar'),
@@ -1694,7 +1704,7 @@ class _FinCombate extends StatelessWidget {
               foregroundColor: Colors.black,
             ),
             onPressed: onCambiarTema,
-            icon: const Icon(Icons.auto_awesome, size: 18),
+            icon: const PixelIcon(fileName: 'chest_full_open_anim_f0.png', size: 18),
             label: const Text('Volver a Jugar con otro tema'),
           ),
           const SizedBox(height: 10),
@@ -2106,77 +2116,6 @@ class _DialogoEleccionPerks extends StatelessWidget {
   }
 }
 
-class _PanelNarrativo extends StatelessWidget {
-  final String texto;
-  final VoidCallback onContinuar;
-
-  const _PanelNarrativo({
-    required this.texto,
-    required this.onContinuar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.superficieElevada,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.azulTexto.withValues(alpha: 0.5), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.azulTexto.withValues(alpha: 0.2),
-            blurRadius: 20,
-            spreadRadius: 2,
-          )
-        ],
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.auto_awesome, color: AppTheme.azulTexto, size: 48),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.azulTexto,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Text(
-              'NUEVO',
-              style: TextStyle(
-                fontFamily: 'PressStart2P',
-                fontSize: 8,
-                color: AppTheme.fondoNoche,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            texto,
-            style: const TextStyle(
-              fontSize: 16,
-              height: 1.5,
-              color: AppTheme.azulTexto,
-              fontStyle: FontStyle.italic,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 30),
-          ElevatedButton.icon(
-            onPressed: onContinuar,
-            icon: const Icon(Icons.arrow_forward),
-            label: const Text('Continuar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.azulTexto,
-              foregroundColor: AppTheme.fondoNoche,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _ConsolaNarrativa extends StatefulWidget {
   final List<BattleLogEntry> historial;

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/design_system/sysquest_theme.dart';
 import '../../core/design_system/transitions/retro_page_route.dart';
 import '../../core/design_system/widgets/dungeon_menu_backdrop.dart';
+import '../../core/design_system/widgets/pixel_icon.dart';
 import '../../core/design_system/widgets/retro_panel_box.dart';
 import '../../core/design_system/widgets/retro_pixel_button.dart';
 import '../../core/design_system/widgets/retro_text_field.dart';
@@ -310,28 +311,6 @@ class _SysQuestLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: SysQuestColors.stonePanel,
-            border: Border.all(color: SysQuestColors.borderBlack, width: 3),
-            boxShadow: const [
-              BoxShadow(
-                color: SysQuestColors.shadowBlack,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.auto_awesome,
-              color: SysQuestColors.gold,
-              size: 36,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
         Text(
           'SYSQUEST',
           style: SysQuestTypography.h1.copyWith(
@@ -341,24 +320,37 @@ class _SysQuestLogo extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: SysQuestColors.dungeonVoid,
-            border: Border.all(
-              color: SysQuestColors.manaCyan,
-              width: 2,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const PixelIcon(fileName: 'weapon_golden_sword.png', size: 24),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: SysQuestColors.dungeonVoid,
+                border: Border.all(
+                  color: SysQuestColors.manaCyan,
+                  width: 2,
+                ),
+              ),
+              child: Text(
+                'INICIAR SESIÓN',
+                style: SysQuestTypography.caption.copyWith(
+                  color: SysQuestColors.gold,
+                  fontSize: 10,
+                  letterSpacing: 2.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
-          child: Text(
-            'INICIAR SESIÓN',
-            style: SysQuestTypography.caption.copyWith(
-              color: SysQuestColors.gold,
-              fontSize: 10,
-              letterSpacing: 2.0,
-              fontWeight: FontWeight.bold,
+            const SizedBox(width: 8),
+            Transform.flip(
+              flipX: true,
+              child: const PixelIcon(
+                  fileName: 'weapon_golden_sword.png', size: 24),
             ),
-          ),
+          ],
         ),
       ],
     );

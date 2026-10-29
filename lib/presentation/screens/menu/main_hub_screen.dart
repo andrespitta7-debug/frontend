@@ -2,16 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../domain/entities/usuario.dart';
-import '../../../domain/usecases/auth_usecases.dart';
 import '../../core/design_system/sysquest_theme.dart';
 import '../../core/design_system/transitions/retro_page_route.dart';
 import '../../core/design_system/widgets/dungeon_menu_backdrop.dart';
 import '../../core/design_system/widgets/pixel_icon.dart';
 import '../../core/design_system/widgets/retro_bottom_nav_bar.dart';
-import '../../core/design_system/widgets/retro_panel_box.dart';
-import '../../core/design_system/widgets/retro_pixel_button.dart';
-import '../auth/auth_controller.dart';
-import '../auth/login_screen.dart';
 import '../combate/combate_screen.dart';
 import '../generar/generar_quest_screen.dart';
 import '../mapa/mapa_mundo_screen.dart';
@@ -114,87 +109,15 @@ class _MainHubScreenState extends State<MainHubScreen> {
 /// Vista principal de la Mazmorra (Pestaña 0) con las opciones de aventura.
 class MazmorraMenuView extends StatelessWidget {
   final Usuario usuario;
-  final VoidCallback onIrAProgreso;
-  final VoidCallback onIrAPerfil;
+  final VoidCallback? onIrAProgreso;
+  final VoidCallback? onIrAPerfil;
 
   const MazmorraMenuView({
     super.key,
     required this.usuario,
-    required this.onIrAProgreso,
-    required this.onIrAPerfil,
+    this.onIrAProgreso,
+    this.onIrAPerfil,
   });
-
-  Future<void> _confirmarCerrarSesion(BuildContext context) async {
-    final authController = context.read<AuthController>();
-    final cerrarSesionUseCase = context.read<CerrarSesionUseCase>();
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogCtx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: RetroPanelBox(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '¿ABANDONAR EL GREMIO?',
-                    style: SysQuestTypography.h2.copyWith(
-                      color: SysQuestColors.lifeRed,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Volverás a la pantalla de inicio.',
-                    style: SysQuestTypography.body.copyWith(
-                      fontSize: 10,
-                      color: SysQuestColors.parchmentText,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: RetroPixelButton(
-                          text: 'CANCELAR',
-                          color: SysQuestColors.disabledGray,
-                          onPressed: () => Navigator.of(dialogCtx).pop(),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: RetroPixelButton(
-                          text: 'SALIR',
-                          color: SysQuestColors.lifeRed,
-                          onPressed: () async {
-                            Navigator.of(dialogCtx).pop();
-                            await cerrarSesionUseCase.ejecutar();
-                            authController.logout();
-                            if (!context.mounted) return;
-                            Navigator.of(context).pushAndRemoveUntil(
-                              buildRetroRoute(const LoginScreen()),
-                              (_) => false,
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -213,96 +136,89 @@ class MazmorraMenuView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'SysQuest',
-            style: SysQuestTypography.h1.copyWith(
-              color: SysQuestColors.gold,
-              fontSize: 18,
+          // Contenedor oscuro semi-transparente estilo ventana retro para el saludo
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: SysQuestColors.dungeonVoid.withValues(alpha: 0.85),
+              border: Border.all(
+                color: SysQuestColors.stoneHighlight,
+                width: 2,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: SysQuestColors.shadowBlack,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Hola, $nombre',
-            style: SysQuestTypography.h2.copyWith(
-              fontSize: 13,
-              color: SysQuestColors.parchmentText,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '¿Qué aventura quieres jugar hoy?',
-            style: SysQuestTypography.caption.copyWith(
-              color: SysQuestColors.parchmentText.withValues(alpha: 0.8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'SysQuest',
+                  style: SysQuestTypography.h1.copyWith(
+                    color: SysQuestColors.gold,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Hola, $nombre',
+                  style: SysQuestTypography.h2.copyWith(
+                    fontSize: 13,
+                    color: SysQuestColors.parchmentText,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '¿Qué aventura quieres jugar hoy?',
+                  style: SysQuestTypography.caption.copyWith(
+                    color: SysQuestColors.parchmentText.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),
-          GridView.count(
-            crossAxisCount: 2,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            childAspectRatio: 0.95,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _MenuHubCard(
-                icon: Icons.map_outlined,
-                spriteFile: 'doors_leaf_open.png',
-                accent: SysQuestColors.gold,
-                title: 'Mapa de aventura',
-                onTap: () => Navigator.push(
-                  context,
-                  buildRetroRoute(
-                    MapaMundo2DScreen(
-                      idUsuario: usuario.idUsuario,
-                      onSeleccionarQuest: (idQuest) {
-                        Navigator.push(
-                          context,
-                          buildRetroRoute(
-                            CombateScreen(
-                              idQuest: idQuest,
-                              idUsuario: usuario.idUsuario,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+          // 2 Tarjetas anchas e imponentes
+          _MenuHubCard(
+            spriteFile: 'chest_full_open_anim_f0.png',
+            accent: SysQuestColors.gold,
+            title: 'Nueva quest con IA',
+            subtitle: 'Desafía mazmorras generadas por el Archimago Groq',
+            onTap: () => Navigator.push(
+              context,
+              buildRetroRoute(
+                GenerarQuestScreen(idUsuario: usuario.idUsuario),
               ),
-              _MenuHubCard(
-                icon: Icons.auto_awesome,
-                spriteFile: 'chest_full_open_anim_f0.png',
-                accent: SysQuestColors.successGreen,
-                title: 'Nueva quest con IA',
-                onTap: () => Navigator.push(
-                  context,
-                  buildRetroRoute(
-                    GenerarQuestScreen(idUsuario: usuario.idUsuario),
-                  ),
-                ),
-              ),
-              _MenuHubCard(
-                icon: Icons.insights_outlined,
-                spriteFile: 'chest_empty_open_anim_f0.png',
-                accent: SysQuestColors.manaCyan,
-                title: 'Mi progreso',
-                onTap: onIrAProgreso,
-              ),
-              _MenuHubCard(
-                icon: Icons.person_outline,
-                spriteFile: 'knight_m_idle_anim_f0.png',
-                accent: SysQuestColors.gold,
-                title: 'Mi perfil',
-                onTap: onIrAPerfil,
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 28),
-          RetroPixelButton(
-            text: 'CERRAR SESIÓN',
-            color: SysQuestColors.lifeRed,
-            leadingSpriteFile: 'lever_left.png',
-            onPressed: () => _confirmarCerrarSesion(context),
+          const SizedBox(height: 16),
+          _MenuHubCard(
+            spriteFile: 'doors_leaf_open.png',
+            accent: SysQuestColors.manaCyan,
+            title: 'Mapa de aventura',
+            subtitle: 'Explora el Valle de Algoritmos y supera cada nodo',
+            onTap: () => Navigator.push(
+              context,
+              buildRetroRoute(
+                MapaMundo2DScreen(
+                  idUsuario: usuario.idUsuario,
+                  onSeleccionarQuest: (idQuest) {
+                    Navigator.push(
+                      context,
+                      buildRetroRoute(
+                        CombateScreen(
+                          idQuest: idQuest,
+                          idUsuario: usuario.idUsuario,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -311,17 +227,17 @@ class MazmorraMenuView extends StatelessWidget {
 }
 
 class _MenuHubCard extends StatelessWidget {
-  final IconData icon;
-  final String? spriteFile;
+  final String spriteFile;
   final Color accent;
   final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
   const _MenuHubCard({
-    required this.icon,
-    this.spriteFile,
+    required this.spriteFile,
     required this.accent,
     required this.title,
+    required this.subtitle,
     required this.onTap,
   });
 
@@ -343,30 +259,49 @@ class _MenuHubCard extends StatelessWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: SysQuestColors.dungeonVoid,
                 border: Border.all(color: accent, width: 2),
               ),
-              child: spriteFile != null
-                  ? Center(child: PixelIcon(fileName: spriteFile!, size: 24))
-                  : Icon(icon, color: accent, size: 24),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: SysQuestTypography.caption.copyWith(
-                color: SysQuestColors.parchmentText,
-                fontSize: 9.5,
-                fontWeight: FontWeight.bold,
+              child: Center(
+                child: PixelIcon(fileName: spriteFile, size: 32),
               ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: SysQuestTypography.button.copyWith(
+                      color: accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: SysQuestTypography.caption.copyWith(
+                      color: SysQuestColors.parchmentText.withValues(alpha: 0.8),
+                      fontSize: 9.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: accent,
+              size: 24,
             ),
           ],
         ),

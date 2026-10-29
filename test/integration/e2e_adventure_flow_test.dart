@@ -80,7 +80,7 @@ void main() {
     expect(find.text('SysQuest'), findsOneWidget);
     expect(find.text('Mapa de aventura'), findsOneWidget);
     expect(find.text('Nueva quest con IA'), findsOneWidget);
-    expect(find.text('Mi progreso'), findsOneWidget);
-    expect(find.text('Mi perfil'), findsOneWidget);
+    expect(find.text('CÓDICE'), findsOneWidget);
+    expect(find.text('PERFIL'), findsOneWidget);
   });
 }
