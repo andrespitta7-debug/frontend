@@ -12,6 +12,8 @@ class BattleFighterWidget extends StatefulWidget {
   final bool isEnemy;
   final double scale;
   final bool forceRun;
+  final bool isWalking;
+  final String? shieldSpriteFile;
 
   const BattleFighterWidget({
     super.key,
@@ -20,6 +22,8 @@ class BattleFighterWidget extends StatefulWidget {
     this.isEnemy = false,
     this.scale = 1.0,
     this.forceRun = false,
+    this.isWalking = false,
+    this.shieldSpriteFile,
   });
 
   @override
@@ -27,13 +31,14 @@ class BattleFighterWidget extends StatefulWidget {
 }
 
 class BattleFighterWidgetState extends State<BattleFighterWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   SpriteAnimation? _idleAnimation;
   SpriteAnimationTicker? _idleTicker;
   SpriteAnimation? _runAnimation;
   SpriteAnimationTicker? _runTicker;
 
   late AnimationController _attackController;
+  late AnimationController _bobCtrl;
   late Animation<double> _lungeAnimation;
   late Animation<double> _swordAnimation;
 
@@ -44,6 +49,10 @@ class BattleFighterWidgetState extends State<BattleFighterWidget>
   void initState() {
     super.initState();
     _initAnimations();
+    _bobCtrl = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: widget.isWalking ? 160 : 320),
+    )..repeat(reverse: true);
     _cargarSprites();
   }
 
@@ -156,25 +165,42 @@ class BattleFighterWidgetState extends State<BattleFighterWidget>
     if (oldWidget.characterPrefix != widget.characterPrefix) {
       _cargarSprites();
     }
+    if (oldWidget.isWalking != widget.isWalking) {
+      _bobCtrl.duration = Duration(milliseconds: widget.isWalking ? 160 : 320);
+      if (!_bobCtrl.isAnimating) {
+        _bobCtrl.repeat(reverse: true);
+      }
+    }
   }
 
   @override
   void dispose() {
     _impactTimer?.cancel();
     _attackController.dispose();
+    _bobCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final bool useRun =
-        (_isAttacking || widget.forceRun) && _runAnimation != null;
+        (_isAttacking || widget.forceRun || widget.isWalking) &&
+            _runAnimation != null;
     final activeAnim = useRun ? _runAnimation : _idleAnimation;
     final activeTicker = useRun ? _runTicker : _idleTicker;
 
     return AnimatedBuilder(
-      animation: _attackController,
+      animation: Listenable.merge([_attackController, _bobCtrl]),
       builder: (context, _) {
+        final double bobY = (_bobCtrl.value * 3.0) - 1.5;
+        final double strideX =
+            widget.isWalking ? (_bobCtrl.value * 4.0) - 2.0 : 0.0;
+        final double swordAngle = _isAttacking
+            ? _swordAnimation.value
+            : (widget.isWalking
+                ? 0.58 + (_bobCtrl.value * 0.15)
+                : 0.18 + (_bobCtrl.value * 0.08));
+
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.diagonal3Values(
@@ -214,17 +240,34 @@ class BattleFighterWidgetState extends State<BattleFighterWidget>
                   ),
                 ),
 
-                // Arma equipada en SizedBox(width: 18, height: 34) con BoxFit.contain y FilterQuality.none, right: 0, bottom: 8
+                // Escudo o emblema de armadura opcional
+                if (widget.shieldSpriteFile != null)
+                  Positioned(
+                    left: 4 + strideX,
+                    bottom: 12 + bobY,
+                    child: SizedBox(
+                      width: 16,
+                      height: 18,
+                      child: Image.asset(
+                        'assets/sprites/frames/${widget.shieldSpriteFile}',
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.none,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+
+                // Arma equipada cerca del puño con balanceo e inclinación
                 if (widget.weaponSprite != null)
                   Positioned(
-                    right: 0,
-                    bottom: 8,
+                    right: 8 - strideX,
+                    bottom: 11 + bobY,
                     child: Transform.rotate(
-                      angle: _swordAnimation.value,
+                      angle: swordAngle,
                       alignment: Alignment.bottomLeft,
                       child: SizedBox(
-                        width: 18,
-                        height: 34,
+                        width: 16,
+                        height: 30,
                         child: Image.asset(
                           'assets/sprites/frames/${widget.weaponSprite}',
                           fit: BoxFit.contain,

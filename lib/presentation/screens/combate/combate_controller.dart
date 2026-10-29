@@ -126,6 +126,7 @@ class CombateController extends ChangeNotifier {
   String get dificultadQuest => _dificultadQuest;
   String get questTitle => _questTitle;
   String get resolvedTopic => _resolvedTopic;
+  int get indiceActual => _indiceActual;
 
   void seleccionarPerk(RoguelitePerk perk) {
     _activePerks.add(perk);

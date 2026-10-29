@@ -108,7 +108,7 @@ class _CombateScreenState extends State<CombateScreen>
     );
     _corridorScrollController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1800),
     );
     _portalDropController.forward();
     _arenaPhaseTimer = Timer(const Duration(milliseconds: 1500), () {
@@ -382,7 +382,7 @@ class _CombateScreenState extends State<CombateScreen>
               destelloCritico: _destelloCritico,
               arenaPhase: _arenaPhase,
               portalDropTop: _portalDropAnimation.value,
-              scrollOffset: _corridorScrollController.value * 64.0,
+              scrollOffset: _corridorScrollController.value * 320.0,
               walkingSpeech: _walkingSpeech,
               questCompleta: widget.questCompleta,
               onPerkSeleccionado: _iniciarWalkingCorridor,
@@ -916,32 +916,65 @@ class _CombateContenido extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(
-                  child: BattleStage(
-                    height: 160,
-                    scrollOffset: arenaPhase == ArenaPhase.walkingCorridor ? scrollOffset : 0.0,
-                    showCeilingHole: arenaPhase == ArenaPhase.portalDropIntro,
-                    isEnemyVisible: arenaPhase == ArenaPhase.combatActive,
-                    playerCustomTop: arenaPhase == ArenaPhase.portalDropIntro ? portalDropTop : null,
-                    playerActor: BattleFighterWidget(
-                      key: playerFighterKey,
-                      characterPrefix: 'knight_m',
-                      weaponSprite: controller.armaEquipada,
-                      isEnemy: false,
-                      forceRun: arenaPhase == ArenaPhase.walkingCorridor,
-                    ),
-                    enemyActor: EnemyDamageAndDeathWrapper(
-                      isHit: enemigoRecibioGolpe,
-                      isDead: enemigoMuerto,
-                      child: BattleFighterWidget(
-                        key: enemyFighterKey,
-                        characterPrefix:
-                            encuentro.esJefe ? 'big_demon' : 'goblin',
-                        weaponSprite: encuentro.esJefe
-                            ? 'weapon_cleaver.png'
-                            : 'weapon_knife.png',
-                        isEnemy: true,
-                      ),
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      final biome = BiomeData.fromIndex(controller.indiceActual);
+                      return BattleStage(
+                        height: 160,
+                        scrollOffset: arenaPhase == ArenaPhase.walkingCorridor
+                            ? scrollOffset
+                            : 0.0,
+                        showCeilingHole: arenaPhase == ArenaPhase.portalDropIntro,
+                        isEnemyVisible: arenaPhase == ArenaPhase.combatActive,
+                        biomeColorFilter: biome.colorFilter,
+                        bannerSprite: biome.bannerSprite,
+                        extraWallProp: biome.extraWallProp,
+                        playerActor: arenaPhase == ArenaPhase.portalDropIntro
+                            ? TweenAnimationBuilder<double>(
+                                key: const ValueKey(ArenaPhase.portalDropIntro),
+                                tween: Tween<double>(begin: -130.0, end: 0.0),
+                                duration: const Duration(milliseconds: 1100),
+                                curve: Curves.bounceOut,
+                                builder: (context, dropY, child) {
+                                  return Transform.translate(
+                                    offset: Offset(0, dropY),
+                                    child: child,
+                                  );
+                                },
+                                child: BattleFighterWidget(
+                                  key: playerFighterKey,
+                                  characterPrefix: 'knight_m',
+                                  weaponSprite: controller.armaEquipada,
+                                  isEnemy: false,
+                                  isWalking: false,
+                                  forceRun: false,
+                                ),
+                              )
+                            : BattleFighterWidget(
+                                key: playerFighterKey,
+                                characterPrefix: 'knight_m',
+                                weaponSprite: controller.armaEquipada,
+                                isEnemy: false,
+                                isWalking:
+                                    arenaPhase == ArenaPhase.walkingCorridor,
+                                forceRun:
+                                    arenaPhase == ArenaPhase.walkingCorridor,
+                              ),
+                        enemyActor: EnemyDamageAndDeathWrapper(
+                          isHit: enemigoRecibioGolpe,
+                          isDead: enemigoMuerto,
+                          child: BattleFighterWidget(
+                            key: enemyFighterKey,
+                            characterPrefix:
+                                encuentro.esJefe ? 'big_demon' : 'goblin',
+                            weaponSprite: encuentro.esJefe
+                                ? 'weapon_cleaver.png'
+                                : 'weapon_knife.png',
+                            isEnemy: true,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
 
