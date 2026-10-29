@@ -79,6 +79,12 @@ diagnostico en validator
   transición automática de enemigos al morir, uso del pool narrativo inmersivo y
   modal de pausa con retiro/continuar.
 - **Fix fallback parámetros combate:** Fallback seguro en `CombateController.cargarQuest` para `temaQuest` ('Aventura General'), `categoriaQuest` ('libre') y `dificultadQuest` ('facil'), evitando errores 400 del backend al solicitar más encuentros en quests predeterminadas/semilla.
+- **Limpieza de interfaz, modales inmersivos y legibilidad de arena:**
+  - Menú principal unificado: eliminación de logout redundante en el header, botón único inferior retro (`SysQuestColors.lifeRed`, `lever_left.png`), sin emojis.
+  - Eventos como modales inmersivos: `_mostrarEventoModal` usando `RetroPanelBox` con `barrierDismissible: false` y fondo oscurecido, eliminando cards inline de decisión y ocultando jerga técnica (`Bioma: ... | Efecto: ...`).
+  - Helper `dungeon_lore_translator.dart` que traduce tags mecánicos (`trap_triggered`, `dungeon_crypt`, `subtle_glitch`, etc.) a nombres inmersivos.
+  - Legibilidad en la arena: `topPadding: topInset + 40`, fuentes mínimas escaladas a 9.5px, cajas y banners con fondo `SysQuestColors.dungeonVoid.withValues(alpha: 0.9)` y borde semántico de 2px.
+  - 179 tests unitarios y de integración pasando (174 previos + 5 nuevos), 0 issues en `dart analyze`.
 
 ## En curso
 

@@ -9,7 +9,6 @@ import '../../../domain/entities/opcion_encuentro.dart';
 import '../../../domain/usecases/responder_encuentro_usecase.dart';
 import '../../../domain/entities/quest_completa.dart';
 import '../../../domain/entities/wildcard.dart';
-import '../../../domain/entities/visual_scene.dart';
 import '../../../domain/entities/roguelite_perk.dart';
 import '../../utils/local_dungeon_narrator.dart';
 import '../../theme/app_theme.dart';
@@ -27,6 +26,7 @@ import '../../core/design_system/widgets/pixel_icon.dart';
 import '../../core/design_system/widgets/retro_panel_box.dart';
 import '../../core/design_system/widgets/retro_pixel_button.dart';
 import '../../core/design_system/utils/text_sanitizer.dart';
+import '../../utils/dungeon_lore_translator.dart';
 
 enum ArenaPhase {
   portalDropIntro,
@@ -77,6 +77,7 @@ class _CombateScreenState extends State<CombateScreen>
       GlobalKey<BattleFighterWidgetState>();
   bool _enemigoRecibioGolpe = false;
   bool _enemigoMuerto = false;
+  bool _eventoModalAbierto = false;
 
   late final AnimationController _temblorEnemigo;
   late final AnimationController _sacudidaPantalla;
@@ -155,8 +156,22 @@ class _CombateScreenState extends State<CombateScreen>
 
   void _detectarCambioDeEstado() {
     final controller = _controller;
-    final resultado = controller?.resultadoUltimoTurno;
-    if (controller == null || controller.cargando || resultado == null) return;
+    if (controller == null) return;
+
+    final evento = controller.eventoActivo;
+    if (evento != null && !_eventoModalAbierto && mounted) {
+      _eventoModalAbierto = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _controller?.eventoActivo == null) {
+          _eventoModalAbierto = false;
+          return;
+        }
+        _mostrarEventoModal(context, _controller!.eventoActivo!);
+      });
+    }
+
+    final resultado = controller.resultadoUltimoTurno;
+    if (controller.cargando || resultado == null) return;
     if (identical(_resultadoMostrado, resultado)) return;
     _resultadoMostrado = resultado;
 
@@ -316,6 +331,16 @@ class _CombateScreenState extends State<CombateScreen>
         builder: (context, controller, _) {
           if (controller.cargando) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (controller.eventoActivo != null && !_eventoModalAbierto) {
+            _eventoModalAbierto = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || _controller?.eventoActivo == null) {
+                _eventoModalAbierto = false;
+                return;
+              }
+              _mostrarEventoModal(context, _controller!.eventoActivo!);
+            });
           }
           final encuentro = controller.encuentroActual;
           if (encuentro == null) {
@@ -481,6 +506,87 @@ class _CombateScreenState extends State<CombateScreen>
         );
       },
     );
+  }
+
+  Future<void> _mostrarEventoModal(
+    BuildContext context,
+    EventoDecision evento,
+  ) async {
+    final controller = _controller;
+    if (controller == null) {
+      _eventoModalAbierto = false;
+      return;
+    }
+
+    final visualTag = controller.eventoActualVisual?.visualScene.visualTag;
+    final biomeTag = controller.eventoActualVisual?.visualScene.biomeTag;
+    final rawTag = (visualTag != null && visualTag.isNotEmpty)
+        ? visualTag
+        : ((biomeTag != null && biomeTag.isNotEmpty)
+            ? biomeTag
+            : evento.titulo);
+    final tituloTraducido = translateEventTitle(rawTag);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (dialogCtx) {
+        return PopScope(
+          canPop: false,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: RetroPanelBox(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        tituloTraducido,
+                        style: SysQuestTypography.h2.copyWith(
+                          color: SysQuestColors.gold,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        sanitizeRetroText(evento.descripcion),
+                        style: SysQuestTypography.body.copyWith(
+                          fontSize: 9.5,
+                          color: SysQuestColors.parchmentText,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      for (final opcion in evento.opciones) ...[
+                        RetroPixelButton(
+                          text: sanitizeRetroText(opcion.etiqueta),
+                          color: SysQuestColors.stonePanel,
+                          onPressed: () {
+                            Navigator.of(dialogCtx).pop();
+                            controller.resolverEventoDecision(opcion.codigoAccion);
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    _eventoModalAbierto = false;
   }
 
   void _volverAJugar() {
@@ -762,29 +868,19 @@ class _CombateContenido extends StatelessWidget {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: controller.eventoActivo != null && !controller.esFinDeRonda
-                ? _EventoDecisionCard(
-                    evento: controller.eventoActivo!,
-                    visualScene: controller.eventoActualVisual?.visualScene,
-                    vidaActual: controller.vidaJugador,
-                    onSeleccionar: (opcion) {
-                      controller.resolverEventoDecision(opcion);
-                      onPerkSeleccionado();
-                    },
-                  )
-                : _RondaSuperada(
-                    rondaActual: controller.ronda,
-                    vidaActual: controller.vidaJugador,
-                    onDescansoSeguro: () {
-                      controller.continuarSiguienteRonda(temerario: false);
-                      onPerkSeleccionado();
-                    },
-                    onPactoTemerario: () {
-                      controller.continuarSiguienteRonda(temerario: true);
-                      onPerkSeleccionado();
-                    },
-                    onRetirarseConBotin: () => controller.retirarse(),
-                  ),
+            child: _RondaSuperada(
+              rondaActual: controller.ronda,
+              vidaActual: controller.vidaJugador,
+              onDescansoSeguro: () {
+                controller.continuarSiguienteRonda(temerario: false);
+                onPerkSeleccionado();
+              },
+              onPactoTemerario: () {
+                controller.continuarSiguienteRonda(temerario: true);
+                onPerkSeleccionado();
+              },
+              onRetirarseConBotin: () => controller.retirarse(),
+            ),
           ),
         ),
       );
@@ -803,7 +899,8 @@ class _CombateContenido extends StatelessWidget {
       );
     }
 
-    final topPadding = MediaQuery.paddingOf(context).top;
+    final topInset = MediaQuery.paddingOf(context).top;
+    final topPadding = topInset + 40;
 
     // COMBATE ACTIVO: ZERO-SCROLL TACTICAL SPLIT HUD
     return SafeArea(
@@ -869,7 +966,7 @@ class _CombateContenido extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: SysQuestTypography.h3.copyWith(
                                 color: SysQuestColors.gold,
-                                fontSize: 9,
+                                fontSize: 10,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -878,7 +975,7 @@ class _CombateContenido extends StatelessWidget {
                               textAlign: TextAlign.center,
                               style: SysQuestTypography.caption.copyWith(
                                 color: SysQuestColors.parchmentText,
-                                fontSize: 7,
+                                fontSize: 9.5,
                               ),
                             ),
                           ],
@@ -898,14 +995,14 @@ class _CombateContenido extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: SysQuestColors.dungeonVoid.withValues(alpha: 0.9),
-                          border: Border.all(color: SysQuestColors.parchmentText, width: 1.5),
+                          border: Border.all(color: SysQuestColors.parchmentText, width: 2),
                         ),
                         child: Text(
                           walkingSpeech,
                           textAlign: TextAlign.center,
                           style: SysQuestTypography.caption.copyWith(
                             color: SysQuestColors.parchmentText,
-                            fontSize: 7.5,
+                            fontSize: 9.5,
                             height: 1.3,
                           ),
                         ),
@@ -969,7 +1066,7 @@ class _CombateContenido extends StatelessWidget {
                             horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color:
-                              SysQuestColors.dungeonVoid.withValues(alpha: 0.85),
+                              SysQuestColors.dungeonVoid.withValues(alpha: 0.9),
                           border:
                               Border.all(color: SysQuestColors.lifeRed, width: 2),
                         ),
@@ -977,7 +1074,7 @@ class _CombateContenido extends StatelessWidget {
                           'TEMERARIO x2',
                           style: SysQuestTypography.caption.copyWith(
                             color: SysQuestColors.lifeRed,
-                            fontSize: 7,
+                            fontSize: 9.5,
                           ),
                         ),
                       ),
@@ -1510,160 +1607,6 @@ class _RondaSuperada extends StatelessWidget {
   }
 }
 
-class _SpriteSceneViewer extends StatelessWidget {
-  final VisualScene visualScene;
-
-  const _SpriteSceneViewer({required this.visualScene});
-
-  Color _parseColor(String hex) {
-    try {
-      final clean = hex.replaceAll('#', '').trim();
-      final buffer = StringBuffer();
-      if (clean.length == 6) {
-        buffer.write('FF');
-        buffer.write(clean);
-      } else if (clean.length == 8) {
-        buffer.write(clean);
-      } else {
-        return AppTheme.azulTexto;
-      }
-      return Color(int.parse(buffer.toString(), radix: 16));
-    } catch (_) {
-      return AppTheme.azulTexto;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final borderColor = _parseColor(visualScene.tintHex);
-
-    // TODO: Integrar SpriteAnimationWidget de Flame aquí
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.fondoNoche,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor, width: 2),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              visualScene.visualTag,
-              style: TextStyle(
-                fontFamily: 'PressStart2P',
-                fontSize: 11,
-                color: borderColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Bioma: ${visualScene.biomeTag} | Efecto: ${visualScene.screenEffect}',
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.white70,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EventoDecisionCard extends StatelessWidget {
-  final EventoDecision evento;
-  final VisualScene? visualScene;
-  final int vidaActual;
-  final void Function(String) onSeleccionar;
-
-  const _EventoDecisionCard({
-    required this.evento,
-    this.visualScene,
-    required this.vidaActual,
-    required this.onSeleccionar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.superficieNoche,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.azulTexto, width: 2),
-      ),
-      child: Column(
-        children: [
-          if (visualScene != null) _SpriteSceneViewer(visualScene: visualScene!),
-          Text(
-            evento.iconoEmoji,
-            style: const TextStyle(fontSize: 36),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            evento.titulo,
-            style: const TextStyle(
-              fontFamily: 'PressStart2P',
-              fontSize: 11,
-              color: AppTheme.azulTexto,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Vida actual: $vidaActual/100 HP',
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            evento.descripcion,
-            style: const TextStyle(
-              fontStyle: FontStyle.italic,
-              fontSize: 12,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          for (final opcion in evento.opciones) ...[
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.superficieElevada,
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: AppTheme.azulTexto),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                ),
-                onPressed: () => onSeleccionar(opcion.codigoAccion),
-                child: Text(
-                  opcion.etiqueta,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _FinCombate extends StatelessWidget {
   final CombateController controller;
   final VoidCallback onVolverAJugar;
@@ -1810,13 +1753,20 @@ class _ResumenPartidaCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                '✨ XP GANADA:',
-                style: TextStyle(
-                  fontFamily: 'PressStart2P',
-                  fontSize: 10,
-                  color: AppTheme.verdeVida,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  PixelIcon(fileName: 'coin_anim_f0.png', size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'XP GANADA:',
+                    style: TextStyle(
+                      fontFamily: 'PressStart2P',
+                      fontSize: 10,
+                      color: AppTheme.verdeVida,
+                    ),
+                  ),
+                ],
               ),
               Text(
                 '+${controller.xpFinalMostrada} XP',
@@ -1937,7 +1887,7 @@ class _NumeroDanioState extends State<_NumeroDanio> with SingleTickerProviderSta
               '+CRIT!',
               style: TextStyle(
                 fontFamily: 'PressStart2P',
-                fontSize: 8,
+                fontSize: 9.5,
                 color: SysQuestColors.gold,
                 shadows: const [
                   Shadow(color: Colors.black, blurRadius: 4, offset: Offset(1, 1)),
@@ -2428,7 +2378,7 @@ class _IndicadorRachaState extends State<_IndicadorRacha>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🔥', style: TextStyle(fontSize: 20)),
+            const PixelIcon(fileName: 'coin_anim_f0.png', size: 16),
             const SizedBox(width: 8),
             Text(
               'RACHA x${widget.racha}',
@@ -2495,7 +2445,7 @@ class _SemanticConsoleBox extends StatelessWidget {
         height: 80,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: SysQuestColors.stoneShadow,
+          color: SysQuestColors.dungeonVoid.withValues(alpha: 0.9),
           border: Border.all(color: color, width: 2),
         ),
         child: Row(
@@ -2520,7 +2470,7 @@ class _SemanticConsoleBox extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: SysQuestTypography.caption.copyWith(
-                            fontSize: 7,
+                            fontSize: 9.5,
                             color: SysQuestColors.mutedRunes,
                           ),
                         ),
@@ -2528,7 +2478,7 @@ class _SemanticConsoleBox extends StatelessWidget {
                     Text(
                       '> ${sanitizeRetroText(latest.message)}',
                       style: SysQuestTypography.caption.copyWith(
-                        fontSize: 8.5,
+                        fontSize: 9.5,
                         height: 1.35,
                         color: color,
                       ),

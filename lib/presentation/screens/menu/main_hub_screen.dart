@@ -213,25 +213,12 @@ class MazmorraMenuView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'SysQuest',
-                style: SysQuestTypography.h1.copyWith(
-                  color: SysQuestColors.gold,
-                  fontSize: 18,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Cerrar sesión',
-                onPressed: () => _confirmarCerrarSesion(context),
-                icon: const Icon(
-                  Icons.logout,
-                  color: SysQuestColors.parchmentText,
-                ),
-              ),
-            ],
+          Text(
+            'SysQuest',
+            style: SysQuestTypography.h1.copyWith(
+              color: SysQuestColors.gold,
+              fontSize: 18,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
