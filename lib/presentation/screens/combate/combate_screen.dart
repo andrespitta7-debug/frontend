@@ -21,6 +21,7 @@ import '../../core/design_system/sysquest_theme.dart';
 import '../../core/design_system/widgets/pixel_icon.dart';
 import '../../core/design_system/widgets/retro_panel_box.dart';
 import '../../core/design_system/widgets/retro_pixel_button.dart';
+import '../../core/design_system/utils/text_sanitizer.dart';
 
 class CombateScreen extends StatefulWidget {
   final String idQuest;
@@ -485,7 +486,7 @@ class _CombateContenido extends StatelessWidget {
 
   void _mostrarConsolaCompleta(
     BuildContext context,
-    List<String> historial,
+    List<BattleLogEntry> historial,
   ) {
     showDialog(
       context: context,
@@ -527,6 +528,103 @@ class _CombateContenido extends StatelessWidget {
                 const SizedBox(height: 10),
                 RetroPixelButton(
                   text: 'CERRAR',
+                  height: 36,
+                  color: SysQuestColors.stonePanel,
+                  textColor: SysQuestColors.parchmentText,
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDetalleComodin(
+    BuildContext context,
+    TipoWildcard tipo,
+    int cantidad,
+    bool activo,
+  ) {
+    final info = _obtenerInfoComodin(tipo);
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: RetroPanelBox(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    PixelIcon(fileName: info.sprite, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            info.nombre,
+                            style: SysQuestTypography.h3.copyWith(
+                              color: SysQuestColors.gold,
+                              fontSize: 10,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Usos restantes: $cantidad',
+                            style: SysQuestTypography.caption.copyWith(
+                              color: cantidad > 0
+                                  ? SysQuestColors.parchmentText
+                                  : SysQuestColors.disabledGray,
+                              fontSize: 7.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: SysQuestColors.dungeonVoid,
+                    border: Border.all(
+                      color: SysQuestColors.stoneHighlight,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    info.descripcion,
+                    style: SysQuestTypography.body.copyWith(
+                      color: SysQuestColors.parchmentText,
+                      fontSize: 8,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                if (activo) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '¡EFECTO ACTIVO PARA EL SIGUIENTE TURNO!',
+                    style: SysQuestTypography.caption.copyWith(
+                      color: SysQuestColors.manaCyan,
+                      fontSize: 7,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                const SizedBox(height: 16),
+                RetroPixelButton(
+                  text: 'ENTENDIDO',
                   height: 36,
                   color: SysQuestColors.stonePanel,
                   textColor: SysQuestColors.parchmentText,
@@ -592,14 +690,14 @@ class _CombateContenido extends StatelessWidget {
       );
     }
 
-    // COMBATE ACTIVO: ZERO-SCROLL ESTRICTO
+    // COMBATE ACTIVO: ZERO-SCROLL TACTICAL SPLIT HUD
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Arena de Combate (Altura fija 220px)
+          // 1. Banda Superior: Arena de Combate (Altura fija 160px)
           SizedBox(
-            height: 220,
+            height: 160,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -676,95 +774,113 @@ class _CombateContenido extends StatelessWidget {
                       ),
                     ),
                   ),
-
-                // Ticker abajo (28px)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: 28,
-                  child: _TickerNarrativoArena(
-                    ultimoMensaje: controller.historialNarrativo.isNotEmpty
-                        ? controller.historialNarrativo.last
-                        : 'El combate ha comenzado...',
-                    onTap: () => _mostrarConsolaCompleta(
-                      context,
-                      controller.historialNarrativo,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
 
-          // 2. Fila de Comodines (Altura fija 60px)
-          SizedBox(
-            height: 60,
-            child: _FilaWildcardsZeroScroll(
-              wildcards: controller.wildcards,
-              pistaActiva: controller.pistaActiva,
-              golpeDobleActivo: controller.golpeDobleActivo,
-              roboDeVidaActivo: controller.roboDeVidaActivo,
-              turnoEnProceso: turnoEnProceso,
-              onUsarWildcard: controller.usarWildcard,
-            ),
-          ),
+          const SizedBox(height: 4),
 
-          // 3. Pregunta (Expanded flex: 4)
+          // 2. Banda Media: Pregunta + Consola Semántica + Comodines Laterales (flex: 5)
           Expanded(
-            flex: 4,
+            flex: 5,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: RetroPanelBox(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Center(
-                  child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Lado Izquierdo: Consola Semántica (80px) + Pregunta
+                  Expanded(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (controller.pistaActiva != null) ...[
-                          Container(
+                        _SemanticConsoleBox(
+                          historial: controller.historialNarrativo,
+                          onTap: () => _mostrarConsolaCompleta(
+                            context,
+                            controller.historialNarrativo,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Expanded(
+                          child: RetroPanelBox(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            margin: const EdgeInsets.only(bottom: 6),
-                            decoration: BoxDecoration(
-                              color: SysQuestColors.dungeonVoid,
-                              border: Border.all(
-                                  color: SysQuestColors.gold, width: 1.5),
-                            ),
-                            child: Text(
-                              'PISTA: ${controller.pistaActiva}',
-                              style: SysQuestTypography.caption.copyWith(
-                                color: SysQuestColors.gold,
-                                fontSize: 8,
+                                horizontal: 10, vertical: 6),
+                            child: Center(
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (controller.pistaActiva != null) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        margin:
+                                            const EdgeInsets.only(bottom: 4),
+                                        decoration: BoxDecoration(
+                                          color: SysQuestColors.dungeonVoid,
+                                          border: Border.all(
+                                              color: SysQuestColors.gold,
+                                              width: 1.5),
+                                        ),
+                                        child: Text(
+                                          'PISTA: ${sanitizeRetroText(controller.pistaActiva!)}',
+                                          style: SysQuestTypography.caption
+                                              .copyWith(
+                                            color: SysQuestColors.gold,
+                                            fontSize: 7.5,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ],
+                                    Text(
+                                      sanitizeRetroText(encuentro.pregunta),
+                                      style: SysQuestTypography.body.copyWith(
+                                        color: SysQuestColors.parchmentText,
+                                        fontSize: 9.5,
+                                        height: 1.35,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              textAlign: TextAlign.center,
                             ),
                           ),
-                        ],
-                        Text(
-                          encuentro.pregunta,
-                          style: SysQuestTypography.body.copyWith(
-                            color: SysQuestColors.parchmentText,
-                            fontSize: 10,
-                            height: 1.35,
-                          ),
-                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   ),
-                ),
+
+                  const SizedBox(width: 6),
+
+                  // Lado Derecho: Comodines Laterales (Ancho 68px)
+                  SizedBox(
+                    width: 68,
+                    child: _ColumnaComodinesTactical(
+                      wildcards: controller.wildcards,
+                      pistaActiva: controller.pistaActiva,
+                      golpeDobleActivo: controller.golpeDobleActivo,
+                      roboDeVidaActivo: controller.roboDeVidaActivo,
+                      turnoEnProceso: turnoEnProceso,
+                      onUsarWildcard: controller.usarWildcard,
+                      onMostrarDetalle: (tipo, cantidad, activo) =>
+                          _mostrarDetalleComodin(
+                              context, tipo, cantidad, activo),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          // 4. Opciones (Expanded flex: 6)
+          const SizedBox(height: 4),
+
+          // 3. Banda Inferior: 4 Opciones de Respuesta (flex: 5)
           Expanded(
-            flex: 6,
+            flex: 5,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
               child: Column(
                 children: encuentro.opciones.map((opcion) {
                   final descartada =
@@ -772,7 +888,7 @@ class _CombateContenido extends StatelessWidget {
 
                   return Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2.5),
+                      padding: const EdgeInsets.symmetric(vertical: 2),
                       child: descartada
                           ? const RetroPixelButton(
                               text: '--- DESCARTADA ---',
@@ -782,7 +898,8 @@ class _CombateContenido extends StatelessWidget {
                               textColor: SysQuestColors.disabledGray,
                             )
                           : RetroPixelButton(
-                              text: '${opcion.letra}  ${opcion.texto}',
+                              text:
+                                  '${opcion.letra}  ${sanitizeRetroText(opcion.texto)}',
                               height: null,
                               enabled: !turnoEnProceso,
                               color: SysQuestColors.stonePanel,
@@ -942,91 +1059,69 @@ class _BarraVidaEnemigoCompacta extends StatelessWidget {
   }
 }
 
-class _TickerNarrativoArena extends StatelessWidget {
-  final String ultimoMensaje;
-  final VoidCallback onTap;
+class _InfoWildcard {
+  final String nombre;
+  final String descripcion;
+  final String sprite;
 
-  const _TickerNarrativoArena({
-    required this.ultimoMensaje,
-    required this.onTap,
+  const _InfoWildcard({
+    required this.nombre,
+    required this.descripcion,
+    required this.sprite,
   });
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.75),
-          border: Border(
-            top: BorderSide(
-              color: SysQuestColors.stoneHighlight.withValues(alpha: 0.6),
-              width: 1.5,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.terminal,
-              color: SysQuestColors.gold,
-              size: 14,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                ultimoMensaje,
-                style: SysQuestTypography.caption.copyWith(
-                  color: SysQuestColors.gold,
-                  fontSize: 8,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const Icon(
-              Icons.unfold_more,
-              color: SysQuestColors.gold,
-              size: 14,
-            ),
-          ],
-        ),
-      ),
-    );
+_InfoWildcard _obtenerInfoComodin(TipoWildcard tipo) {
+  switch (tipo) {
+    case TipoWildcard.cincuentaCincuenta:
+      return const _InfoWildcard(
+        nombre: '50/50',
+        descripcion: 'Elimina 2 opciones incorrectas de la pregunta actual.',
+        sprite: 'weapon_knife.png',
+      );
+    case TipoWildcard.roboDeVida:
+      return const _InfoWildcard(
+        nombre: 'Poción Vampírica',
+        descripcion:
+            'Si aciertas en tu siguiente turno, recuperas un 50% del daño infligido.',
+        sprite: 'flask_big_green.png',
+      );
+    case TipoWildcard.golpeDoble:
+      return const _InfoWildcard(
+        nombre: 'Golpe Doble',
+        descripcion:
+            'Tu siguiente ataque exitoso inflige el doble de daño al enemigo.',
+        sprite: 'weapon_waraxe.png',
+      );
+    case TipoWildcard.pista:
+      return const _InfoWildcard(
+        nombre: 'Oráculo de Datos',
+        descripcion:
+            'El oráculo examina la pregunta y revela una pista clave.',
+        sprite: 'flask_big_yellow.png',
+      );
   }
 }
 
-class _FilaWildcardsZeroScroll extends StatelessWidget {
+class _ColumnaComodinesTactical extends StatelessWidget {
   final Map<TipoWildcard, int> wildcards;
   final String? pistaActiva;
   final bool golpeDobleActivo;
   final bool roboDeVidaActivo;
   final bool turnoEnProceso;
   final ValueChanged<TipoWildcard> onUsarWildcard;
+  final void Function(TipoWildcard tipo, int cantidad, bool activo)
+      onMostrarDetalle;
 
-  const _FilaWildcardsZeroScroll({
+  const _ColumnaComodinesTactical({
     required this.wildcards,
     required this.pistaActiva,
     required this.golpeDobleActivo,
     required this.roboDeVidaActivo,
     required this.turnoEnProceso,
     required this.onUsarWildcard,
+    required this.onMostrarDetalle,
   });
-
-  String _spriteDeWildcard(TipoWildcard tipo) {
-    switch (tipo) {
-      case TipoWildcard.cincuentaCincuenta:
-        return 'weapon_knife.png';
-      case TipoWildcard.roboDeVida:
-        return 'flask_big_green.png';
-      case TipoWildcard.golpeDoble:
-        return 'weapon_waraxe.png';
-      case TipoWildcard.pista:
-        return 'flask_big_yellow.png';
-    }
-  }
 
   bool _esActivo(TipoWildcard tipo) {
     if (tipo == TipoWildcard.pista) return pistaActiva != null;
@@ -1037,41 +1132,46 @@ class _FilaWildcardsZeroScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: TipoWildcard.values.map((tipo) {
-          final cantidad = wildcards[tipo] ?? 0;
-          final activo = _esActivo(tipo);
-          final habilitado = cantidad > 0 && !turnoEnProceso;
+    return Column(
+      children: TipoWildcard.values.map((tipo) {
+        final cantidad = wildcards[tipo] ?? 0;
+        final activo = _esActivo(tipo);
+        final info = _obtenerInfoComodin(tipo);
+        final habilitado = cantidad > 0 && !turnoEnProceso;
 
-          return _BotonComodinCuadrado(
-            spriteFileName: _spriteDeWildcard(tipo),
-            cantidad: cantidad,
-            activo: activo,
-            habilitado: habilitado,
-            onPressed: () => onUsarWildcard(tipo),
-          );
-        }).toList(),
-      ),
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: _BotonComodinTactical(
+              spriteFileName: info.sprite,
+              cantidad: cantidad,
+              activo: activo,
+              habilitado: habilitado,
+              onPressed: () => onUsarWildcard(tipo),
+              onLongPress: () => onMostrarDetalle(tipo, cantidad, activo),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
 
-class _BotonComodinCuadrado extends StatelessWidget {
+class _BotonComodinTactical extends StatelessWidget {
   final String spriteFileName;
   final int cantidad;
   final bool activo;
   final bool habilitado;
   final VoidCallback onPressed;
+  final VoidCallback onLongPress;
 
-  const _BotonComodinCuadrado({
+  const _BotonComodinTactical({
     required this.spriteFileName,
     required this.cantidad,
     required this.activo,
     required this.habilitado,
     required this.onPressed,
+    required this.onLongPress,
   });
 
   @override
@@ -1087,13 +1187,16 @@ class _BotonComodinCuadrado extends StatelessWidget {
 
     return GestureDetector(
       onTap: habilitado ? onPressed : null,
+      onLongPress: onLongPress,
+      behavior: HitTestBehavior.opaque,
       child: Opacity(
         opacity: habilitado ? 1.0 : 0.45,
         child: Container(
-          width: 52,
-          height: 48,
+          width: double.infinity,
           decoration: BoxDecoration(
-            color: SysQuestColors.stonePanel,
+            color: activo
+                ? SysQuestColors.manaCyan.withValues(alpha: 0.15)
+                : SysQuestColors.stonePanel,
             border: Border.all(color: borderColor, width: 2),
             boxShadow: habilitado
                 ? const [
@@ -1107,7 +1210,7 @@ class _BotonComodinCuadrado extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              PixelIcon(fileName: spriteFileName, size: 22),
+              PixelIcon(fileName: spriteFileName, size: 20),
               const SizedBox(height: 2),
               Text(
                 'x$cantidad',
@@ -1749,7 +1852,7 @@ class _PanelNarrativo extends StatelessWidget {
 }
 
 class _ConsolaNarrativa extends StatefulWidget {
-  final List<String> historial;
+  final List<BattleLogEntry> historial;
   const _ConsolaNarrativa({required this.historial});
   
   @override
@@ -1802,10 +1905,12 @@ class _ConsolaNarrativaState extends State<_ConsolaNarrativa> {
               child: ListView.builder(
                 itemCount: widget.historial.length,
                 itemBuilder: (context, index) {
-                  final estilo = _EstiloLineaNarrativa.parse(widget.historial[index]);
+                  final estilo =
+                      _EstiloLineaNarrativa.fromEntry(widget.historial[index]);
                   return Container(
                     margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: estilo.colorFondo,
                       borderRadius: const BorderRadius.only(
@@ -1820,7 +1925,7 @@ class _ConsolaNarrativaState extends State<_ConsolaNarrativa> {
                       ),
                     ),
                     child: Text(
-                      estilo.texto,
+                      sanitizeRetroText(estilo.texto),
                       style: TextStyle(
                         fontSize: 12,
                         color: estilo.colorTexto,
@@ -1854,53 +1959,61 @@ class _EstiloLineaNarrativa {
     this.fontStyle = FontStyle.normal,
   });
 
-  factory _EstiloLineaNarrativa.parse(String linea) {
-    if (linea.startsWith('[CRITICO]')) {
-      return _EstiloLineaNarrativa(
-        texto: linea.substring('[CRITICO]'.length).trimLeft(),
-        colorTexto: AppTheme.doradoCritico,
-        colorBorde: AppTheme.doradoCritico,
-        colorFondo: AppTheme.doradoCritico.withValues(alpha: 0.08),
-      );
-    } else if (linea.startsWith('[RACHA]')) {
-      return _EstiloLineaNarrativa(
-        texto: linea.substring('[RACHA]'.length).trimLeft(),
-        colorTexto: AppTheme.doradoCritico,
-        colorBorde: AppTheme.doradoCritico,
-        colorFondo: AppTheme.doradoCritico.withValues(alpha: 0.08),
-      );
-    } else if (linea.startsWith('[ACIERTO]')) {
-      return _EstiloLineaNarrativa(
-        texto: linea.substring('[ACIERTO]'.length).trimLeft(),
-        colorTexto: AppTheme.azulTexto,
-        colorBorde: AppTheme.azulTexto,
-        colorFondo: AppTheme.azulTexto.withValues(alpha: 0.08),
-      );
-    } else if (linea.startsWith('[CONTRAATAQUE]')) {
-      return _EstiloLineaNarrativa(
-        texto: linea.substring('[CONTRAATAQUE]'.length).trimLeft(),
-        colorTexto: AppTheme.rojoDanio,
-        colorBorde: AppTheme.rojoDanio,
-        colorFondo: AppTheme.rojoDanio.withValues(alpha: 0.10),
-      );
-    } else if (linea.startsWith('[COMODIN]')) {
-      return _EstiloLineaNarrativa(
-        texto: linea.substring('[COMODIN]'.length).trimLeft(),
-        colorTexto: AppTheme.verdeVida,
-        colorBorde: AppTheme.verdeVida,
-        colorFondo: AppTheme.verdeVida.withValues(alpha: 0.08),
-      );
-    } else {
-      final texto = linea.startsWith('[HISTORIA]')
-          ? linea.substring('[HISTORIA]'.length).trimLeft()
-          : linea;
-      return _EstiloLineaNarrativa(
-        texto: texto,
-        colorTexto: Colors.white70,
-        colorBorde: Colors.white24,
-        colorFondo: Colors.white.withValues(alpha: 0.03),
-        fontStyle: FontStyle.italic,
-      );
+  factory _EstiloLineaNarrativa.fromEntry(BattleLogEntry entry) {
+    final linea = entry.message;
+    switch (entry.type) {
+      case BattleLogType.playerHit:
+        final texto = linea.startsWith('[CRITICO]')
+            ? linea.substring('[CRITICO]'.length).trimLeft()
+            : (linea.startsWith('[ACIERTO]')
+                ? linea.substring('[ACIERTO]'.length).trimLeft()
+                : linea);
+        return _EstiloLineaNarrativa(
+          texto: texto,
+          colorTexto: SysQuestColors.manaCyan,
+          colorBorde: SysQuestColors.manaCyan,
+          colorFondo: SysQuestColors.manaCyan.withValues(alpha: 0.08),
+        );
+      case BattleLogType.damageTaken:
+        final texto = linea.startsWith('[CONTRAATAQUE]')
+            ? linea.substring('[CONTRAATAQUE]'.length).trimLeft()
+            : linea;
+        return _EstiloLineaNarrativa(
+          texto: texto,
+          colorTexto: SysQuestColors.lifeRed,
+          colorBorde: SysQuestColors.lifeRed,
+          colorFondo: SysQuestColors.lifeRed.withValues(alpha: 0.10),
+        );
+      case BattleLogType.oracleHint:
+        return _EstiloLineaNarrativa(
+          texto: linea,
+          colorTexto: SysQuestColors.gold,
+          colorBorde: SysQuestColors.gold,
+          colorFondo: SysQuestColors.gold.withValues(alpha: 0.08),
+        );
+      case BattleLogType.healOrBuff:
+        final texto = linea.startsWith('[COMODIN]')
+            ? linea.substring('[COMODIN]'.length).trimLeft()
+            : linea;
+        return _EstiloLineaNarrativa(
+          texto: texto,
+          colorTexto: AppTheme.verdeVida,
+          colorBorde: AppTheme.verdeVida,
+          colorFondo: AppTheme.verdeVida.withValues(alpha: 0.08),
+        );
+      case BattleLogType.narrative:
+        final texto = linea.startsWith('[HISTORIA]')
+            ? linea.substring('[HISTORIA]'.length).trimLeft()
+            : (linea.startsWith('[RACHA]')
+                ? linea.substring('[RACHA]'.length).trimLeft()
+                : linea);
+        return _EstiloLineaNarrativa(
+          texto: texto,
+          colorTexto: Colors.white70,
+          colorBorde: Colors.white24,
+          colorFondo: Colors.white.withValues(alpha: 0.03),
+          fontStyle: FontStyle.italic,
+        );
     }
   }
 }
@@ -2034,6 +2147,105 @@ class _IndicadorRachaState extends State<_IndicadorRacha>
                 fontFamily: 'PressStart2P',
                 fontSize: 11,
                 color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SemanticConsoleBox extends StatelessWidget {
+  final List<BattleLogEntry> historial;
+  final VoidCallback onTap;
+
+  const _SemanticConsoleBox({
+    required this.historial,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = historial.isNotEmpty
+        ? historial.first
+        : const BattleLogEntry(
+            message: 'El combate está por comenzar...',
+            type: BattleLogType.narrative,
+          );
+
+    // Determinar color e icono según el tipo
+    Color color;
+    String iconSprite;
+    switch (latest.type) {
+      case BattleLogType.playerHit:
+        color = SysQuestColors.emeraldXp;
+        iconSprite = 'weapon_knight_sword.png';
+        break;
+      case BattleLogType.damageTaken:
+        color = SysQuestColors.crimsonHp;
+        iconSprite = 'bomb_f0.png';
+        break;
+      case BattleLogType.oracleHint:
+        color = SysQuestColors.manaCyan;
+        iconSprite = 'flask_big_yellow.png';
+        break;
+      case BattleLogType.healOrBuff:
+        color = SysQuestColors.questGold;
+        iconSprite = 'flask_big_green.png';
+        break;
+      case BattleLogType.narrative:
+        color = SysQuestColors.parchmentText;
+        iconSprite = 'chest_full_open_anim_f0.png';
+        break;
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 80,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: SysQuestColors.stoneShadow,
+          border: Border.all(color: color, width: 2),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: PixelIcon(fileName: iconSprite, size: 18),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                reverse: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (historial.length > 1)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '> ${sanitizeRetroText(historial[1].message)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: SysQuestTypography.caption.copyWith(
+                            fontSize: 7,
+                            color: SysQuestColors.mutedRunes,
+                          ),
+                        ),
+                      ),
+                    Text(
+                      '> ${sanitizeRetroText(latest.message)}',
+                      style: SysQuestTypography.caption.copyWith(
+                        fontSize: 8.5,
+                        height: 1.35,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

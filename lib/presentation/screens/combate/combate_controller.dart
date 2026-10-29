@@ -13,6 +13,30 @@ import '../../../domain/usecases/responder_encuentro_usecase.dart';
 import '../../../domain/entities/wildcard.dart';
 import '../../../domain/entities/visual_scene.dart';
 
+enum BattleLogType {
+  narrative,
+  playerHit,
+  damageTaken,
+  oracleHint,
+  healOrBuff,
+}
+
+class BattleLogEntry {
+  final String message;
+  final BattleLogType type;
+
+  const BattleLogEntry({
+    required this.message,
+    required this.type,
+  });
+
+  bool contains(Pattern other, [int startIndex = 0]) =>
+      message.contains(other, startIndex);
+
+  @override
+  String toString() => message;
+}
+
 class OpcionEvento {
   final String etiqueta;
   final String codigoAccion; // 'estudiar_codice', 'destruir_codice', 'mercader_curar', 'mercader_poder', 'fuente_canalizar', 'ignorar'
@@ -117,8 +141,8 @@ class CombateController extends ChangeNotifier {
   bool get roboDeVidaActivo => _roboDeVidaActivo;
   String? get pistaActiva => _pistaActiva;
 
-  final List<String> _historialNarrativo = [];
-  List<String> get historialNarrativo => List.unmodifiable(_historialNarrativo);
+  final List<BattleLogEntry> _historialNarrativo = [];
+  List<BattleLogEntry> get historialNarrativo => List.unmodifiable(_historialNarrativo);
   ResultadoCombate? resultadoUltimoTurno;
   bool cargando = true;
   bool encuentroSuperado = false; // se venció al enemigo actual, pero faltan más
@@ -222,12 +246,12 @@ class CombateController extends ChangeNotifier {
   void _setMensajeNarrativo(String? mensaje) {
     mensajeNarrativoActual = mensaje;
     if (mensaje != null) {
-      _historialNarrativo.insert(0, mensaje);
+      _agregarNarrativa(mensaje, tipo: BattleLogType.narrative);
     }
   }
 
-  void _agregarNarrativa(String mensaje) {
-    _historialNarrativo.insert(0, mensaje);
+  void _agregarNarrativa(String mensaje, {BattleLogType tipo = BattleLogType.narrative}) {
+    _historialNarrativo.insert(0, BattleLogEntry(message: mensaje, type: tipo));
   }
 
   Future<void> cargarQuest(
@@ -383,25 +407,39 @@ class CombateController extends ChangeNotifier {
     final nombreEnemigo = (encuentroActual?.enemigo?.isNotEmpty == true) ? encuentroActual!.enemigo! : 'El enemigo';
 
     if (resultado.resultado == ResultadoTurno.critico) {
-      _agregarNarrativa('[CRITICO] 💥 ¡Golpe crítico a $nombreEnemigo! Le causas -$danioAlEnemigoFinal HP.');
+      _agregarNarrativa(
+          '[CRITICO] 💥 ¡Golpe crítico a $nombreEnemigo! Le causas -$danioAlEnemigoFinal HP.',
+          tipo: BattleLogType.playerHit);
     } else if (resultado.resultado == ResultadoTurno.acierto) {
-      _agregarNarrativa('[ACIERTO] ⚔️ Atacas a $nombreEnemigo y le causas -$danioAlEnemigoFinal HP.');
+      _agregarNarrativa(
+          '[ACIERTO] ⚔️ Atacas a $nombreEnemigo y le causas -$danioAlEnemigoFinal HP.',
+          tipo: BattleLogType.playerHit);
     }
 
     if (aplicaRoboDeVida && esAciertoOCritico) {
-      _agregarNarrativa('[COMODIN] 💚 ¡Poción Vampirica activada! Recuperas +10 HP (Vida: $vidaJugador/100).');
+      _agregarNarrativa(
+          '[COMODIN] 💚 ¡Poción Vampirica activada! Recuperas +10 HP (Vida: $vidaJugador/100).',
+          tipo: BattleLogType.healOrBuff);
     }
 
     if (_rachaActual == 5) {
-      _agregarNarrativa('[RACHA] 🔥 ¡Racha Imparable (x5)! Daño x1.5 y +50 pts de bonus.');
+      _agregarNarrativa(
+          '[RACHA] 🔥 ¡Racha Imparable (x5)! Daño x1.5 y +50 pts de bonus.',
+          tipo: BattleLogType.healOrBuff);
     } else if (_rachaActual == 7) {
-      _agregarNarrativa('[RACHA] 🔥 ¡RACHA LEGENDARIA (x7)! Daño x1.75 y +100 pts de bonus.');
+      _agregarNarrativa(
+          '[RACHA] 🔥 ¡RACHA LEGENDARIA (x7)! Daño x1.75 y +100 pts de bonus.',
+          tipo: BattleLogType.healOrBuff);
     }
 
     if (resultado.resultado == ResultadoTurno.fallo) {
-      _agregarNarrativa('[CONTRAATAQUE] 🩸 Fallaste. $nombreEnemigo contraataca con furia y te quita -$danioAlJugadorFinal HP.');
+      _agregarNarrativa(
+          '[CONTRAATAQUE] 🩸 Fallaste. $nombreEnemigo contraataca con furia y te quita -$danioAlJugadorFinal HP.',
+          tipo: BattleLogType.damageTaken);
       if (rachaPrevia >= 3) {
-        _agregarNarrativa('[CONTRAATAQUE] 💔 ¡Perdiste tu racha de $rachaPrevia aciertos!');
+        _agregarNarrativa(
+            '[CONTRAATAQUE] 💔 ¡Perdiste tu racha de $rachaPrevia aciertos!',
+            tipo: BattleLogType.damageTaken);
       }
     }
 
@@ -452,7 +490,9 @@ class CombateController extends ChangeNotifier {
         if (_modoTemerarioActivo) {
           _rondasTemerariasSuperadas += 1;
           _score += 200;
-          _agregarNarrativa('[RACHA] 💀 ¡Sobreviviste al Pacto Temerario! +200 pts extra.');
+          _agregarNarrativa(
+              '[RACHA] 💀 ¡Sobreviviste al Pacto Temerario! +200 pts extra.',
+              tipo: BattleLogType.healOrBuff);
         }
       }
       final hayMasEncuentros = _indiceActual + 1 < _encuentros.length;
@@ -650,11 +690,15 @@ class CombateController extends ChangeNotifier {
       if (vidaJugador > 25) {
         vidaJugador = (vidaJugador - 10).clamp(1, 100);
       }
-      _agregarNarrativa('[CRITICO] 💀 ¡Pacto Temerario aceptado! Daño +30%, Recompensa +200 pts, Enemigos +5 daño.');
+      _agregarNarrativa(
+          '[CRITICO] 💀 ¡Pacto Temerario aceptado! Daño +30%, Recompensa +200 pts, Enemigos +5 daño.',
+          tipo: BattleLogType.healOrBuff);
     } else {
       _modoTemerarioActivo = false;
       vidaJugador = (vidaJugador + 25).clamp(0, 100);
-      _agregarNarrativa('[COMODIN] 🛡️ Descansaste en la hoguera: recuperas +25 HP (Vida: $vidaJugador/100).');
+      _agregarNarrativa(
+          '[COMODIN] 🛡️ Descansaste en la hoguera: recuperas +25 HP (Vida: $vidaJugador/100).',
+          tipo: BattleLogType.healOrBuff);
     }
 
     if (encuentroSuperado) {
@@ -680,12 +724,14 @@ class CombateController extends ChangeNotifier {
         _score += 100;
         _otorgarWildcardAleatoria();
         _agregarNarrativa(
-            '[COMODIN] 📖 Estudiaste el Códice Arcano: -10 HP, +100 pts y obtuviste un comodín.');
+            '[COMODIN] 📖 Estudiaste el Códice Arcano: -10 HP, +100 pts y obtuviste un comodín.',
+            tipo: BattleLogType.healOrBuff);
         break;
       case 'destruir_codice':
         vidaJugador = (vidaJugador + 15).clamp(0, 100);
         _agregarNarrativa(
-            '[COMODIN] 🛡️ Purificaste el Códice Arcano: recuperas +15 HP (Vida: $vidaJugador/100).');
+            '[COMODIN] 🛡️ Purificaste el Códice Arcano: recuperas +15 HP (Vida: $vidaJugador/100).',
+            tipo: BattleLogType.healOrBuff);
         break;
       case 'mercader_poder':
         vidaJugador = (vidaJugador - 15).clamp(1, 100);
@@ -693,12 +739,14 @@ class CombateController extends ChangeNotifier {
         _wildcards[TipoWildcard.golpeDoble] =
             (_wildcards[TipoWildcard.golpeDoble] ?? 0) + 1;
         _agregarNarrativa(
-            '[CRITICO] ⚡ Aceptaste el Pacto del Mercader: -15 HP, +150 pts y +1 Golpe Doble.');
+            '[CRITICO] ⚡ Aceptaste el Pacto del Mercader: -15 HP, +150 pts y +1 Golpe Doble.',
+            tipo: BattleLogType.healOrBuff);
         break;
       case 'mercader_curar':
         vidaJugador = (vidaJugador + 20).clamp(0, 100);
         _agregarNarrativa(
-            '[COMODIN] 💚 Bebiste el Elixir del Mercader: recuperas +20 HP (Vida: $vidaJugador/100).');
+            '[COMODIN] 💚 Bebiste el Elixir del Mercader: recuperas +20 HP (Vida: $vidaJugador/100).',
+            tipo: BattleLogType.healOrBuff);
         break;
     }
 
@@ -764,19 +812,27 @@ class CombateController extends ChangeNotifier {
     switch (tipo) {
       case TipoWildcard.cincuentaCincuenta:
         _aplicarCincuentaCincuenta();
-        _agregarNarrativa('[COMODIN] 🎯 Usaste 50/50: dos opciones falsas fueron descartadas.');
+        _agregarNarrativa(
+            '[COMODIN] 🎯 Usaste 50/50: dos opciones falsas fueron descartadas.',
+            tipo: BattleLogType.healOrBuff);
         break;
       case TipoWildcard.roboDeVida:
         _roboDeVidaActivo = true;
-        _agregarNarrativa('[COMODIN] 🧪 Preparaste Poción Vampirica: tu próximo acierto curará +10 HP.');
+        _agregarNarrativa(
+            '[COMODIN] 🧪 Preparaste Poción Vampirica: tu próximo acierto curará +10 HP.',
+            tipo: BattleLogType.healOrBuff);
         break;
       case TipoWildcard.golpeDoble:
         _golpeDobleActivo = true;
-        _agregarNarrativa('[COMODIN] ⚡ Activaste Golpe Doble: tu próximo ataque hará el doble de daño.');
+        _agregarNarrativa(
+            '[COMODIN] ⚡ Activaste Golpe Doble: tu próximo ataque hará el doble de daño.',
+            tipo: BattleLogType.healOrBuff);
         break;
       case TipoWildcard.pista:
         _pistaActiva = _generarPistaLocal();
-        _agregarNarrativa('[COMODIN] 💡 Consultaste al Oráculo para obtener una pista.');
+        _agregarNarrativa(
+            '[COMODIN] 💡 Consultaste al Oráculo para obtener una pista.',
+            tipo: BattleLogType.oracleHint);
         break;
     }
 

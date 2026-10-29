@@ -21,6 +21,13 @@ class SysQuestColors {
   // Estados secundarios
   static const Color successGreen = Color(0xFF35E88E); // Verde de acierto
   static const Color disabledGray = Color(0xFF5A5364); // Deshabilitado
+
+  // Alias semánticos RPG
+  static const Color emeraldXp = successGreen;
+  static const Color crimsonHp = lifeRed;
+  static const Color questGold = gold;
+  static const Color stoneShadow = dungeonVoid;
+  static const Color mutedRunes = disabledGray;
 }
 
 /// Tipografía retro basada en la fuente 8-bit 'PressStart2P'.
