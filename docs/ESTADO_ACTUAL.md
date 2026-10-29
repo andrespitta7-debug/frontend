@@ -85,6 +85,13 @@ diagnostico en validator
   - Helper `dungeon_lore_translator.dart` que traduce tags mecánicos (`trap_triggered`, `dungeon_crypt`, `subtle_glitch`, etc.) a nombres inmersivos.
   - Legibilidad en la arena: `topPadding: topInset + 40`, fuentes mínimas escaladas a 9.5px, cajas y banners con fondo `SysQuestColors.dungeonVoid.withValues(alpha: 0.9)` y borde semántico de 2px.
   - 179 tests unitarios y de integración pasando (174 previos + 5 nuevos), 0 issues en `dart analyze`.
+- **Física de la arena, caída real, caminata fluida y biomas por sala:**
+  - Caída real del héroe con `TweenAnimationBuilder` (-130px a 0px con curva `bounceOut`) al descender por el agujero en `portalDropIntro`.
+  - Animación fluida de 4 frames: tickers `_idleTicker` y `_runTicker` cacheados en el estado para evitar reinicio a `f0` en cada rebuild.
+  - Espada sincronizada con balanceo del héroe (`_bobCtrl`), anclada al puño y con inclinación dinámica según modo (idle, caminata, ataque). Soporte opcional de `shieldSpriteFile`.
+  - Caminata continua por el corredor (`walkingCorridor`) con scroll fluido de 320px y props dinámicos en movimiento (`column_wall.png`, `crate.png`, estandartes y elementos de pared).
+  - Biomas por sala (`BiomeData.fromIndex(indiceActual)`) con filtros de color modulados (normal, verde pantanoso, rojo jefe, azul arcano), estandartes correspondientes y props de pared (`wall_goo.png`, `wall_fountain_basin_red_anim_f0.png`).
+  - 182 tests unitarios y de integración pasando (179 previos + 3 nuevos), 0 issues en `dart analyze`. Commit `c1f92d2`.
 
 ## En curso
 
@@ -234,3 +241,5 @@ y el docente: `feature/SYSQ-XX` → `dev` → `preprod` → `main`. |
 | 2026-10-14 | Eventos con decision entre combates (Bloque 7): arquetipos interactivos Codice Arcano y Mercader del Abismo en encuentros intermedios, integrados con HP, score, comodines y consola narrativa (137 tests pasando). Fase 2 Gameplay completada. | Fase 2 - Bloque 7 |
 | 2026-10-29 | Inmersión RPG completa en Flutter: `LocalDungeonNarrator` con pools locales de fantasía oscura; soporte para `questTitle` y `resolvedTopic`; máquina de estados de arena (`ArenaPhase`: caída por portal, caminata de pasillo con scroll y combate activo); fix de espada proporcionada (18x34 px) y daños críticos flotantes (`+CRIT!`) sin recorte; sistema de perks Roguelite estilo Vampire Survivors (`RoguelitePerk`); pantalla de carga del Oráculo con timers desacoplados (500ms barra, 7s consejos estilo Terraria/Minecraft); renombramiento a "Mazmorra de Práctica (Modo Local)" y corrección de SafeArea superior. 173 tests pasando. | Frontend - Inmersión & Roguelite |
 | 2026-10-29 | Navegación unificada con `RetroBottomNavBar` (MAZMORRA, CÓDICE, PERFIL) e `IndexedStack` lazy en `MainHubScreen`. Integración fluida de Menú, Progreso y Perfil con estética pixel art. Botón de "Cerrar Sesión" en Perfil con `RetroPixelButton` (`lever_left.png`), modal retro "¿ABANDONAR EL GREMIO?" (`RetroPanelBox`) y alias `logout()` en `AuthController`. Extensión de `DungeonMenuBackdrop` (`SizedBox.expand`) sin SafeArea superior en Menú, Login, Generar Quest y Oráculo. 174 tests pasando. | Frontend - Navegación Retro Unificada |
+| 2026-10-29 | Limpieza de menú principal (botón de logout único retro inferior), modales superpuestos para eventos con `RetroPanelBox` (barrierDismissible false), helper `dungeon_lore_translator.dart` que oculta jerga técnica, y mejoras de legibilidad en arena (topPadding seguro, textos 9.5px, cajas con fondo void y bordes semánticos). 179 tests pasando. Commit ed1374d. | Frontend - Limpieza de UI & Modales |
+| 2026-10-29 | Física de la arena, caída real con rebote (`TweenAnimationBuilder` -130 a 0 px), animación fluida de 4 frames sin reinicio de ticker, espada sincronizada con el balanceo (`_bobCtrl`), caminata continua con props y biomas dinámicos por sala (182 tests pasando). Commit c1f92d2. | Frontend - Arena y Físicas |
