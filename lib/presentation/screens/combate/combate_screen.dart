@@ -78,7 +78,6 @@ class _CombateScreenState extends State<CombateScreen>
       GlobalKey<BattleFighterWidgetState>();
   bool _enemigoRecibioGolpe = false;
   bool _enemigoMuerto = false;
-  bool _eventoModalAbierto = false;
 
   late final AnimationController _temblorEnemigo;
   late final AnimationController _sacudidaPantalla;
@@ -148,7 +147,11 @@ class _CombateScreenState extends State<CombateScreen>
     setState(() {
       _arenaPhase = ArenaPhase.walkingCorridor;
       _walkingSpeech = LocalDungeonNarrator.getWalkingText();
+      _enemigoMuerto = false;
+      _enemigoRecibioGolpe = false;
+      _resultadoMostrado = null;
     });
+    _corridorScrollController.forward(from: 0.0);
     _corridorScrollController.repeat();
     _arenaPhaseTimer?.cancel();
     _arenaPhaseTimer = Timer(const Duration(milliseconds: 1800), () {
@@ -167,18 +170,6 @@ class _CombateScreenState extends State<CombateScreen>
 
     if (!controller.cargando && controller.encuentroActual != null && !_introDropIniciado) {
       _iniciarIntroDrop();
-    }
-
-    final evento = controller.eventoActivo;
-    if (evento != null && !_eventoModalAbierto && mounted) {
-      _eventoModalAbierto = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _controller?.eventoActivo == null) {
-          _eventoModalAbierto = false;
-          return;
-        }
-        _mostrarEventoModal(context, _controller!.eventoActivo!);
-      });
     }
 
     final resultado = controller.resultadoUltimoTurno;
@@ -342,16 +333,6 @@ class _CombateScreenState extends State<CombateScreen>
         builder: (context, controller, _) {
           if (controller.cargando) {
             return const Center(child: CircularProgressIndicator());
-          }
-          if (controller.eventoActivo != null && !_eventoModalAbierto) {
-            _eventoModalAbierto = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted || _controller?.eventoActivo == null) {
-                _eventoModalAbierto = false;
-                return;
-              }
-              _mostrarEventoModal(context, _controller!.eventoActivo!);
-            });
           }
           final encuentro = controller.encuentroActual;
           if (encuentro == null) {
@@ -521,87 +502,6 @@ class _CombateScreenState extends State<CombateScreen>
         );
       },
     );
-  }
-
-  Future<void> _mostrarEventoModal(
-    BuildContext context,
-    EventoDecision evento,
-  ) async {
-    final controller = _controller;
-    if (controller == null) {
-      _eventoModalAbierto = false;
-      return;
-    }
-
-    final visualTag = controller.eventoActualVisual?.visualScene.visualTag;
-    final biomeTag = controller.eventoActualVisual?.visualScene.biomeTag;
-    final rawTag = (visualTag != null && visualTag.isNotEmpty)
-        ? visualTag
-        : ((biomeTag != null && biomeTag.isNotEmpty)
-            ? biomeTag
-            : evento.titulo);
-    final tituloTraducido = translateEventTitle(rawTag);
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.8),
-      builder: (dialogCtx) {
-        return PopScope(
-          canPop: false,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: RetroPanelBox(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        tituloTraducido,
-                        style: SysQuestTypography.h2.copyWith(
-                          color: SysQuestColors.gold,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        sanitizeRetroText(evento.descripcion),
-                        style: SysQuestTypography.body.copyWith(
-                          fontSize: 9.5,
-                          color: SysQuestColors.parchmentText,
-                          height: 1.4,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      for (final opcion in evento.opciones) ...[
-                        RetroPixelButton(
-                          text: sanitizeRetroText(opcion.etiqueta),
-                          color: SysQuestColors.stonePanel,
-                          onPressed: () {
-                            Navigator.of(dialogCtx).pop();
-                            controller.resolverEventoDecision(opcion.codigoAccion);
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    _eventoModalAbierto = false;
   }
 
   void _volverAJugar() {
@@ -853,40 +753,7 @@ class _CombateContenido extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (controller.perksParaElegir != null && controller.perksParaElegir!.isNotEmpty) {
-      return SafeArea(
-        top: false,
-        child: _DialogoEleccionPerks(
-          perks: controller.perksParaElegir!,
-          onSeleccionar: (perk) {
-            controller.seleccionarPerk(perk);
-            onPerkSeleccionado();
-          },
-        ),
-      );
-    } else if (controller.encuentroSuperado) {
-      return SafeArea(
-        top: false,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: _RondaSuperada(
-              rondaActual: controller.ronda,
-              vidaActual: controller.vidaJugador,
-              onDescansoSeguro: () {
-                controller.continuarSiguienteRonda(temerario: false);
-                onPerkSeleccionado();
-              },
-              onPactoTemerario: () {
-                controller.continuarSiguienteRonda(temerario: true);
-                onPerkSeleccionado();
-              },
-              onRetirarseConBotin: () => controller.retirarse(),
-            ),
-          ),
-        ),
-      );
-    } else if (controller.combateTerminado) {
+    if (controller.combateTerminado) {
       return SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -905,6 +772,7 @@ class _CombateContenido extends StatelessWidget {
     final topPadding = topInset + 40;
 
     // COMBATE ACTIVO: ZERO-SCROLL TACTICAL SPLIT HUD
+    // La franja superior de la Arena (BattleStage de 160px) NUNCA se desmonta ni se tapa
     return SafeArea(
       top: false,
       child: Column(
@@ -927,7 +795,10 @@ class _CombateContenido extends StatelessWidget {
                             ? scrollOffset
                             : 0.0,
                         showCeilingHole: arenaPhase == ArenaPhase.portalDropIntro,
-                        isEnemyVisible: arenaPhase == ArenaPhase.combatActive,
+                        isEnemyVisible: arenaPhase == ArenaPhase.combatActive &&
+                            controller.perksParaElegir == null &&
+                            controller.eventoActivo == null &&
+                            !controller.encuentroSuperado,
                         biomeColorFilter: biome.colorFilter,
                         bannerSprite: biome.bannerSprite,
                         extraWallProp: biome.extraWallProp,
@@ -962,17 +833,35 @@ class _CombateContenido extends StatelessWidget {
                                 forceRun:
                                     arenaPhase == ArenaPhase.walkingCorridor,
                               ),
-                        enemyActor: EnemyDamageAndDeathWrapper(
-                          isHit: enemigoRecibioGolpe,
-                          isDead: enemigoMuerto,
-                          child: BattleFighterWidget(
-                            key: enemyFighterKey,
-                            characterPrefix:
-                                encuentro.esJefe ? 'big_demon' : 'goblin',
-                            weaponSprite: encuentro.esJefe
-                                ? 'weapon_cleaver.png'
-                                : 'weapon_knife.png',
-                            isEnemy: true,
+                        enemyActor: TweenAnimationBuilder<double>(
+                          key: ValueKey(
+                              'enemy_${controller.indiceActual}_${encuentro.idEncuentro}'),
+                          tween: Tween<double>(begin: 80.0, end: 0.0),
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, offsetX, child) {
+                            final opacity =
+                                (1.0 - (offsetX / 80.0)).clamp(0.0, 1.0);
+                            return Opacity(
+                              opacity: opacity,
+                              child: Transform.translate(
+                                offset: Offset(offsetX, 0),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: EnemyDamageAndDeathWrapper(
+                            isHit: enemigoRecibioGolpe,
+                            isDead: enemigoMuerto,
+                            child: BattleFighterWidget(
+                              key: enemyFighterKey,
+                              characterPrefix:
+                                  encuentro.esJefe ? 'big_demon' : 'goblin',
+                              weaponSprite: encuentro.esJefe
+                                  ? 'weapon_cleaver.png'
+                                  : 'weapon_knife.png',
+                              isEnemy: true,
+                            ),
                           ),
                         ),
                       );
@@ -1122,142 +1011,206 @@ class _CombateContenido extends StatelessWidget {
 
           const SizedBox(height: 4),
 
-          // 2. Banda Media: Pregunta + Consola Semántica + Comodines Laterales (flex: 5)
+          // Mitad Inferior de la Pantalla: Perks / Evento / Ronda / Combate normal
           Expanded(
-            flex: 5,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Lado Izquierdo: Consola Semántica (80px) + Pregunta
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _SemanticConsoleBox(
-                          historial: controller.historialNarrativo,
-                          onTap: () => _mostrarConsolaCompleta(
-                            context,
-                            controller.historialNarrativo,
-                          ),
+            child: _construirZonaInferior(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirZonaInferior(BuildContext context) {
+    if (controller.perksParaElegir != null &&
+        controller.perksParaElegir!.isNotEmpty) {
+      return _DialogoEleccionPerks(
+        perks: controller.perksParaElegir!,
+        onSeleccionar: (perk) {
+          controller.seleccionarPerk(perk);
+          if (controller.eventoActivo == null && !controller.encuentroSuperado) {
+            onPerkSeleccionado();
+          }
+        },
+        onOmitir: () {
+          controller.omitirPerks();
+          if (controller.eventoActivo == null && !controller.encuentroSuperado) {
+            onPerkSeleccionado();
+          }
+        },
+      );
+    }
+
+    if (controller.eventoActivo != null) {
+      return _PanelEvento(
+        evento: controller.eventoActivo!,
+        controller: controller,
+        onContinuar: () {
+          if (!controller.encuentroSuperado) {
+            onPerkSeleccionado();
+          }
+        },
+      );
+    }
+
+    if (controller.encuentroSuperado) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: _RondaSuperada(
+            rondaActual: controller.ronda,
+            vidaActual: controller.vidaJugador,
+            onDescansoSeguro: () {
+              controller.continuarSiguienteRonda(temerario: false);
+              onPerkSeleccionado();
+            },
+            onPactoTemerario: () {
+              controller.continuarSiguienteRonda(temerario: true);
+              onPerkSeleccionado();
+            },
+            onRetirarseConBotin: () => controller.retirarse(),
+          ),
+        ),
+      );
+    }
+
+    // COMBATE ACTIVO NORMAL: Pregunta (flex 5) y Opciones (flex 5)
+    return Column(
+      children: [
+        // 2. Banda Media: Pregunta + Consola Semántica + Comodines Laterales (flex: 5)
+        Expanded(
+          flex: 5,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Lado Izquierdo: Consola Semántica (80px) + Pregunta
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _SemanticConsoleBox(
+                        historial: controller.historialNarrativo,
+                        onTap: () => _mostrarConsolaCompleta(
+                          context,
+                          controller.historialNarrativo,
                         ),
-                        const SizedBox(height: 4),
-                        Expanded(
-                          child: RetroPanelBox(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            child: Center(
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (controller.pistaActiva != null) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        margin:
-                                            const EdgeInsets.only(bottom: 4),
-                                        decoration: BoxDecoration(
-                                          color: SysQuestColors.dungeonVoid,
-                                          border: Border.all(
-                                              color: SysQuestColors.gold,
-                                              width: 1.5),
-                                        ),
-                                        child: Text(
-                                          'PISTA: ${sanitizeRetroText(controller.pistaActiva!)}',
-                                          style: SysQuestTypography.caption
-                                              .copyWith(
+                      ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: RetroPanelBox(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          child: Center(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (controller.pistaActiva != null) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      margin:
+                                          const EdgeInsets.only(bottom: 4),
+                                      decoration: BoxDecoration(
+                                        color: SysQuestColors.dungeonVoid,
+                                        border: Border.all(
                                             color: SysQuestColors.gold,
-                                            fontSize: 7.5,
-                                          ),
-                                          textAlign: TextAlign.center,
+                                            width: 1.5),
+                                      ),
+                                      child: Text(
+                                        'PISTA: ${sanitizeRetroText(controller.pistaActiva!)}',
+                                        style: SysQuestTypography.caption
+                                            .copyWith(
+                                          color: SysQuestColors.gold,
+                                          fontSize: 7.5,
                                         ),
+                                        textAlign: TextAlign.center,
                                       ),
-                                    ],
-                                    Text(
-                                      sanitizeRetroText(encuentro.pregunta),
-                                      style: SysQuestTypography.body.copyWith(
-                                        color: SysQuestColors.parchmentText,
-                                        fontSize: 9.5,
-                                        height: 1.35,
-                                      ),
-                                      textAlign: TextAlign.center,
                                     ),
                                   ],
-                                ),
+                                  Text(
+                                    sanitizeRetroText(encuentro.pregunta),
+                                    style: SysQuestTypography.body.copyWith(
+                                      color: SysQuestColors.parchmentText,
+                                      fontSize: 9.5,
+                                      height: 1.35,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
 
-                  const SizedBox(width: 6),
+                const SizedBox(width: 6),
 
-                  // Lado Derecho: Comodines Laterales (Ancho 68px)
-                  SizedBox(
-                    width: 68,
-                    child: _ColumnaComodinesTactical(
-                      wildcards: controller.wildcards,
-                      pistaActiva: controller.pistaActiva,
-                      golpeDobleActivo: controller.golpeDobleActivo,
-                      roboDeVidaActivo: controller.roboDeVidaActivo,
-                      turnoEnProceso: turnoEnProceso,
-                      onUsarWildcard: controller.usarWildcard,
-                      onMostrarDetalle: (tipo, cantidad, activo) =>
-                          _mostrarDetalleComodin(
-                              context, tipo, cantidad, activo),
-                    ),
+                // Lado Derecho: Comodines Laterales (Ancho 68px)
+                SizedBox(
+                  width: 68,
+                  child: _ColumnaComodinesTactical(
+                    wildcards: controller.wildcards,
+                    pistaActiva: controller.pistaActiva,
+                    golpeDobleActivo: controller.golpeDobleActivo,
+                    roboDeVidaActivo: controller.roboDeVidaActivo,
+                    turnoEnProceso: turnoEnProceso,
+                    onUsarWildcard: controller.usarWildcard,
+                    onMostrarDetalle: (tipo, cantidad, activo) =>
+                        _mostrarDetalleComodin(
+                            context, tipo, cantidad, activo),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
+        ),
 
-          const SizedBox(height: 4),
+        const SizedBox(height: 4),
 
-          // 3. Banda Inferior: 4 Opciones de Respuesta (flex: 5)
-          Expanded(
-            flex: 5,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-              child: Column(
-                children: encuentro.opciones.map((opcion) {
-                  final descartada =
-                      controller.opcionesOcultas.contains(opcion.texto);
+        // 3. Banda Inferior: 4 Opciones de Respuesta (flex: 5)
+        Expanded(
+          flex: 5,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+            child: Column(
+              children: encuentro.opciones.map((opcion) {
+                final descartada =
+                    controller.opcionesOcultas.contains(opcion.texto);
 
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: descartada
-                          ? const RetroPixelButton(
-                              text: '--- DESCARTADA ---',
-                              height: null,
-                              enabled: false,
-                              color: SysQuestColors.dungeonVoid,
-                              textColor: SysQuestColors.disabledGray,
-                            )
-                          : RetroPixelButton(
-                              text:
-                                  '${opcion.letra}  ${sanitizeRetroText(opcion.texto)}',
-                              height: null,
-                              enabled: !turnoEnProceso,
-                              color: SysQuestColors.stonePanel,
-                              textColor: SysQuestColors.parchmentText,
-                              onPressed: turnoEnProceso
-                                  ? null
-                                  : () => onElegirOpcion(opcion),
-                            ),
-                    ),
-                  );
-                }).toList(),
-              ),
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: descartada
+                        ? const RetroPixelButton(
+                            text: '--- DESCARTADA ---',
+                            height: null,
+                            enabled: false,
+                            color: SysQuestColors.dungeonVoid,
+                            textColor: SysQuestColors.disabledGray,
+                          )
+                        : RetroPixelButton(
+                            text:
+                                '${opcion.letra}  ${sanitizeRetroText(opcion.texto)}',
+                            height: null,
+                            enabled: !turnoEnProceso,
+                            color: SysQuestColors.stonePanel,
+                            textColor: SysQuestColors.parchmentText,
+                            onPressed: turnoEnProceso
+                                ? null
+                                : () => onElegirOpcion(opcion),
+                          ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1973,22 +1926,21 @@ class _NumeroDanioState extends State<_NumeroDanio> with SingleTickerProviderSta
 class _DialogoEleccionPerks extends StatelessWidget {
   final List<RoguelitePerk> perks;
   final ValueChanged<RoguelitePerk> onSeleccionar;
+  final VoidCallback onOmitir;
 
   const _DialogoEleccionPerks({
     required this.perks,
     required this.onSeleccionar,
+    required this.onOmitir,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.88),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      alignment: Alignment.center,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: RetroPanelBox(
-          borderColor: SysQuestColors.gold,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: RetroPanelBox(
+        borderColor: SysQuestColors.gold,
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1998,10 +1950,10 @@ class _DialogoEleccionPerks extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: SysQuestTypography.h2.copyWith(
                   color: SysQuestColors.gold,
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 'Elige un poder para sobrevivir a los próximos sectores:',
                 textAlign: TextAlign.center,
@@ -2010,7 +1962,7 @@ class _DialogoEleccionPerks extends StatelessWidget {
                   fontSize: 8,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               ...perks.map((perk) {
                 final String tagLabel;
                 final Color tagColor;
@@ -2035,11 +1987,11 @@ class _DialogoEleccionPerks extends StatelessWidget {
                 }
 
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: InkWell(
                     onTap: () => onSeleccionar(perk),
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: SysQuestColors.dungeonVoid,
                         border: Border.all(
@@ -2051,8 +2003,8 @@ class _DialogoEleccionPerks extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          PixelIcon(fileName: perk.sprite, size: 30),
-                          const SizedBox(width: 12),
+                          PixelIcon(fileName: perk.sprite, size: 26),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2090,13 +2042,13 @@ class _DialogoEleccionPerks extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 3),
                                 Text(
                                   perk.descripcion,
                                   style: SysQuestTypography.caption.copyWith(
                                     color: SysQuestColors.parchmentText,
                                     fontSize: 7.5,
-                                    height: 1.3,
+                                    height: 1.25,
                                   ),
                                 ),
                               ],
@@ -2108,6 +2060,22 @@ class _DialogoEleccionPerks extends StatelessWidget {
                   ),
                 );
               }),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: onOmitir,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    'Omitir mejora y seguir avanzando',
+                    textAlign: TextAlign.center,
+                    style: SysQuestTypography.caption.copyWith(
+                      color: SysQuestColors.disabledGray,
+                      fontSize: 8.5,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -2116,6 +2084,141 @@ class _DialogoEleccionPerks extends StatelessWidget {
   }
 }
 
+class _PanelEvento extends StatelessWidget {
+  final EventoDecision evento;
+  final CombateController controller;
+  final VoidCallback onContinuar;
+
+  const _PanelEvento({
+    required this.evento,
+    required this.controller,
+    required this.onContinuar,
+  });
+
+  static String getTitulo(EventoDecision evento, CombateController controller) {
+    final titulo = evento.titulo.trim();
+    if (titulo.isNotEmpty) {
+      return translateEventTitle(titulo);
+    }
+    final visualTag = controller.eventoActualVisual?.visualScene.visualTag;
+    if (visualTag != null && visualTag.isNotEmpty) {
+      return translateEventTitle(visualTag);
+    }
+    final biomeTag = controller.eventoActualVisual?.visualScene.biomeTag;
+    if (biomeTag != null && biomeTag.isNotEmpty) {
+      return translateEventTitle(biomeTag);
+    }
+    return 'EVENTO MÍSTICO';
+  }
+
+  static String getIcono(String titulo, String? visualTag) {
+    final lower = '$titulo ${visualTag ?? ''}'.toLowerCase();
+    if (lower.contains('códice') ||
+        lower.contains('codice') ||
+        lower.contains('cofre') ||
+        lower.contains('chest') ||
+        lower.contains('library')) {
+      return 'chest_full_open_anim_f0.png';
+    }
+    if (lower.contains('mercader') ||
+        lower.contains('merchant') ||
+        lower.contains('sabio') ||
+        lower.contains('mentor') ||
+        lower.contains('wizzard') ||
+        lower.contains('abyss_market')) {
+      return 'wizzard_m_idle_anim_f0.png';
+    }
+    if (lower.contains('trampa') ||
+        lower.contains('trap') ||
+        lower.contains('bomba') ||
+        lower.contains('bomb')) {
+      return 'bomb_f0.png';
+    }
+    return 'chest_full_open_anim_f0.png';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final titulo = getTitulo(evento, controller);
+    final iconoSprite = getIcono(evento.titulo, controller.eventoActualVisual?.visualScene.visualTag);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: RetroPanelBox(
+        borderColor: SysQuestColors.gold,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  PixelIcon(fileName: iconoSprite, size: 22),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      titulo,
+                      style: SysQuestTypography.h2.copyWith(
+                        color: SysQuestColors.gold,
+                        fontSize: 11,
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                sanitizeRetroText(evento.descripcion),
+                style: SysQuestTypography.body.copyWith(
+                  fontSize: 9.0,
+                  color: SysQuestColors.parchmentText,
+                  height: 1.35,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              for (final opcion in evento.opciones) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: RetroPixelButton(
+                    text: sanitizeRetroText(opcion.etiqueta),
+                    color: SysQuestColors.stonePanel,
+                    onPressed: () {
+                      controller.resolverEventoDecision(opcion.codigoAccion);
+                      onContinuar();
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () {
+                  controller.resolverEventoDecision('ignorar');
+                  onContinuar();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    'Ignorar y continuar el camino',
+                    textAlign: TextAlign.center,
+                    style: SysQuestTypography.caption.copyWith(
+                      color: SysQuestColors.disabledGray,
+                      fontSize: 8.5,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _ConsolaNarrativa extends StatefulWidget {
   final List<BattleLogEntry> historial;

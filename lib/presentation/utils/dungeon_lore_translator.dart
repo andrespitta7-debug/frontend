@@ -53,8 +53,13 @@ String translateEventTitle(String rawTag) {
     case 'abyss_market':
       return 'Mercado del Abismo';
     case 'evt_codice_arcano':
+    case '🏺 códice arcano':
+    case 'códice arcano':
+    case 'codice arcano':
       return 'Códice Arcano';
     case 'evt_mercader_abismo':
+    case '🧙‍♂️ mercader del abismo':
+    case 'mercader del abismo':
       return 'Mercader del Abismo';
     default:
       final sanitized = sanitizeRetroText(rawTag).trim();

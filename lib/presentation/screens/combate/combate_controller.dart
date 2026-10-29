@@ -164,6 +164,16 @@ class CombateController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Omite la elección de mejoras en perks y avanza la partida.
+  void omitirPerks() {
+    perksParaElegir = null;
+    _agregarNarrativa(
+      '[AVANCE] ⏩ Decidiste continuar sin elegir mejoras adicionales.',
+      tipo: BattleLogType.narrative,
+    );
+    notifyListeners();
+  }
+
   bool get ganoCombate => jugadorGano;
   int get puntosPorEnemigos => _enemigosDerrotados * 100;
   int get bonusPorRacha => _rachaMaxima >= 7 ? 150 : (_rachaMaxima >= 5 ? 50 : 0);
@@ -683,7 +693,7 @@ class CombateController extends ChangeNotifier {
               eventId: 'evt_codice_arcano',
               visualScene: VisualScene(
                 biomeTag: 'dungeon_crypt',
-                visualTag: 'trap_triggered',
+                visualTag: 'library_codex',
                 animationMode: 'pulse',
                 screenEffect: 'subtle_glitch',
                 tintHex: '#4A90E2',
@@ -925,6 +935,12 @@ class CombateController extends ChangeNotifier {
         _agregarNarrativa(
             '[COMODIN] 💚 Bebiste el Elixir del Mercader: recuperas +20 HP (Vida: $vidaJugador/$vidaJugadorMax).',
             tipo: BattleLogType.healOrBuff);
+        break;
+      case 'ignorar':
+      default:
+        _agregarNarrativa(
+            '[AVANCE] ⏩ Ignoraste el evento y continuaste tu camino por la mazmorra.',
+            tipo: BattleLogType.narrative);
         break;
     }
 
