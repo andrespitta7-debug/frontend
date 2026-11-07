@@ -1,0 +1,9 @@
+# ==========================================
+# Imagen de SonarQube para SysQuest
+# ==========================================
+FROM sonarqube:community
+
+# Deshabilitar chequeos estrictos de Elasticsearch para entorno Docker local
+ENV SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+
+EXPOSE 9000
