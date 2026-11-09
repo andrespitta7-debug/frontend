@@ -67,7 +67,7 @@ Future<void> main() async {
   if (usarBackendRemoto) {
     const anonKey = String.fromEnvironment(
       'SUPABASE_ANON_KEY',
-      defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+      defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjdHVsZ2Zkd2VldXJxYm11Z290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTgxNzEsImV4cCI6MjEwNjIzNDE3MX0.ASjXAUnf6w_muQY5ywu-1BO8HGPMs6NfKWtLcerfLRU',
     );
     const supabaseUrl = String.fromEnvironment(
       'SUPABASE_URL',

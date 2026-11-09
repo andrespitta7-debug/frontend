@@ -1,156 +1,166 @@
-# SysQuest — Documento Maestro de Contexto (v3)
+# SysQuest — Documento Maestro de Contexto (v3 - Perfeccionado)
 
-*Actualizado el 24-sep-2026. Reemplaza a la v2. Pégalo completo como primer mensaje en cualquier chat nuevo (junto con `ESTADO_ACTUAL.md`) o súbelo a NotebookLM. Lo que aquí dice "PENDIENTE" o "PROPUESTO" NO está construido.*
-
----
-
-## 1. Identidad del proyecto
-
-- **Nombre:** SysQuest — plataforma gamificada de aprendizaje para Ingeniería de Sistemas.
-- **Institución:** Universidad de Cundinamarca (UDeC), sede Fusagasugá, Programa de Ingeniería de Sistemas y Computación.
-- **Asignatura:** Ingeniería de Software I (604527). Instructor: Luiferney Ortiz Parra (informalmente "Ferney Ortiz").
-- **Equipo de desarrollo (2 personas):** Jhony Alejandro Palacio Gómez, Andrés Orley Pitta Pardo.
-- **Equipo ampliado de emprendimiento:** 4 personas (los 2 anteriores + 2 de Innovación y Emprendimiento).
-- **Semestre:** 16 semanas; el proyecto arrancó formalmente en la semana 4.
-- **Presupuesto:** cero; todo el stack usa herramientas gratuitas o de muy bajo costo.
-- **Ruta local:** `C:\Users\jhony\sysquest_app` (además contiene `SysQuest_Arquitectura.md`, `continuacion_sysquest.md`, `README.md`).
-- **Informe académico vigente:** `SysQuest - Ing de Software V1.13.pdf` (en NotebookLM).
+*Versión consolidada y perfeccionada a 05-nov-2026. Refleja fielmente la arquitectura distribuida, el backend serverless en producción, las mecánicas roguelite implementadas, la suite de calidad con SonarQube, las pruebas de carga con Apache JMeter y el modelado BPMN en Bizagi. Es la fuente única de verdad para NotebookLM, LLMs asistentes y sustentaciones académicas.*
 
 ---
 
-## 2. Historia del pivote de diseño (no repetir el ciclo)
+## 1. Identidad del Proyecto y Equipo
 
-1. **Versión original:** seis minijuegos independientes (Debug, Database, Algorithm, Network, Architecture, Cyber).
-2. **Versión vigente:** un **único motor RPG 2D pixel art de combate por turnos**. El jugador escribe un tema libre, una IA genera una quest y las seis categorías pasan a ser **categorías temáticas sugeridas**, no juegos distintos.
-
-**Referencia de jugabilidad:** *TBH: Task Bar Hero* (batalla en escena estática). No se necesita motor gráfico ni Flame: todo con widgets estándar de Flutter.
+* **Nombre del Producto:** SysQuest — Plataforma Educativa Gamificada Roguelite para Ingeniería de Sistemas.
+* **Institución:** Universidad de Cundinamarca (UDeC), Sede Fusagasugá, Programa de Ingeniería de Sistemas y Computación.
+* **Asignatura:** Ingeniería de Software I (Código 604527).
+* **Docente / Evaluador:** Luiferney Ortiz Parra ("Ing. Ferney Ortiz").
+* **Equipo de Desarrollo Core (2 integrantes):**
+  * **Jhony Alejandro Palacio Gómez** (Desarrollo Frontend, Motor de Arena, Mecánicas Visuales y UI).
+  * **Andrés Orley Pitta Pardo** (Arquitectura Backend, Base de Datos, Edge Functions, Calidad SonarQube, Pruebas de Carga JMeter y DevOps).
+* **Equipo Ampliado de Emprendimiento:** 4 personas (los 2 anteriores + 2 integrantes de Innovación y Emprendimiento).
+* **Cronograma Académico:** Semestre regular de 16 semanas. Estado actual: **Semana 11 (Fase de Pruebas de Carga, Deploy y Modelo BPMN)**.
+* **Presupuesto del Proyecto:** \$0 COP (100% herramientas gratuitas, créditos educativos y tiers libres de uso institucional).
+* **Estructura Multi-Repositorio Oficial (GitHub):**
+  * **Frontend:** `https://github.com/andrespitta7-debug/frontend`
+  * **Backend:** `https://github.com/andrespitta7-debug/backend`
+* **Despliegues en Vivo (Producción):**
+  * **Frontend Web:** `https://brick-carwash-culprit.ngrok-free.dev` (Túnel HTTPS activo) / Vercel SPA.
+  * **Backend Cloud (Supabase):** `https://jctulgfdweeurqbmugot.supabase.co`
+  * **Documentación Interactiva Swagger:** `https://jctulgfdweeurqbmugot.supabase.co/functions/v1/swagger-ui`
 
 ---
 
-## 3. Arquitectura técnica — YA IMPLEMENTADA (no rediseñar)
+## 2. Visión del Producto y Pivote de Diseño Consolidado
 
-**Patrón:** arquitectura hexagonal + SOLID.
+1. **Versión Original (Superada):** Seis minijuegos independientes y aislados (Debug, Database, Algorithm, Network, Architecture, Cyber).
+2. **Versión Definitiva Implementada:** Un **único motor RPG Roguelite 2D Pixel Art por turnos**. Las seis temáticas se integran como **categorías de conocimiento y biomas procedurales en la arena**, mientras que un motor de Inteligencia Artificial (Groq / Gemini) genera el contenido educativo de forma infinita y contextual.
+3. **Referencias de Diseño:** *Task Bar Hero (TBH)* para el combate en arena estática, *Vampire Survivors* para el árbol de perks y sinergias roguelite, y *Dwarf Fortress* para la bitácora narrativa de combate en consola a color.
+4. **Enfoque de Implementación:** Cero motores pesados externos (sin Unity ni Godot). Todo el frontend está construido puramente sobre **Flutter (Dart)** aprovechando Canvas, transformaciones de matriz y sprites optimizados.
+
+---
+
+## 3. Arquitectura del Sistema (Implementada y en Producción)
+
+El sistema opera bajo una **Arquitectura Hexagonal (Puertos y Adaptadores)** en el cliente, desacoplada mediante un **API Gateway Kong** de un backend serverless transaccional:
 
 ```
-lib/
-├── domain/           ← reglas puras, sin Flutter ni SQLite
-│   ├── entities/       Usuario, Quest, Encuentro, OpcionEncuentro,
-│   │                   y en personaje_partida.dart: Personaje, Partida, ProgresoUsuario
-│   ├── repositories/   QuestRepository, AuthRepository, PartidaRepository (puertos)
-│   └── usecases/       ResponderEncuentroUseCase, RegistrarUsuarioUseCase, IniciarSesionUseCase,
-│                       FinalizarPartidaUseCase, ObtenerProgresoUseCase, PasswordHasher
-├── infrastructure/
-│   └── persistence/sqlite/  DatabaseHelper (migraciones versionadas), SqliteQuestRepository,
-│                            SqliteAuthRepository, SqlitePartidaRepository
-├── presentation/     ← UI: screens/ (auth/, combate/, progreso/)
-└── main.dart         ← única capa que elige implementaciones (inyección de dependencias)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             SYSQUEST CLIENT (FLUTTER)                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [Presentation Layer]                                                       │
+│    Screens: Login, MainHub (IndexedStack), Combate (Arena 2.5D), Progreso   │
+│    Controllers: AuthController, CombateController, GenerarQuestController   │
+│    Widgets: RetroBottomNav, RetroPanelBox, BattleFighterWidget, ConsoleLog  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [Domain Layer - Núcleo Puro]                                              │
+│    Entities: Usuario, Quest, Encuentro, Opcion, Partida, Progreso, Perk    │
+│    Ports (Repositories): AuthRepo, QuestRepo, PartidaRepo, GeneratorRepo    │
+│    Use Cases: IniciarSesion, Registrar, Responder, Finalizar, GenerarQuest │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  [Infrastructure Layer]                                                     │
+│    HTTP Adapters: AuthApiClient, HttpAuthRepo, HttpQuestRepo, HttpPartida   │
+│    Local Cache: SecureTokenRepository, SharedPreferencesSesionRepo          │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ HTTPS / JSON (Bearer JWT + apikey)
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         KONG API GATEWAY (SUPABASE CLOUD)                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Enrutamiento Inverso, CORS Headers (*), Verificación de Tokens y Rate Limit│
+└──────────────────┬───────────────────────────────────────┬──────────────────┘
+                   ▼                                       ▼
+┌──────────────────────────────────────┐  ┌───────────────────────────────────┐
+│     DENO EDGE FUNCTIONS (TYPESCRIPT) │  │       POSTGRESQL 17 DATABASE      │
+├──────────────────────────────────────┤  ├───────────────────────────────────┤
+│ • /login & /register                 │  │ • 14 Migraciones Versionadas      │
+│ • /obtener-usuario-actual            │  │ • Tablas: usuario, personaje,     │
+│ • /generar-quest (Groq AI)           │  │   progreso_usuario, quest,        │
+│ • /generar-quest-completa (MegaRun)  │  │   encuentro, opcion_encuentro,    │
+│ • /generar-encuentros-extra          │  │   partida, quest_cache            │
+│ • /obtener-quest-completa            │  │ • RPCs Atómicas:                  │
+│ • /obtener-progreso                  │  │   - crear_run_completa()          │
+│ • /finalizar-partida (Anti-Cheat)    │  │   - crear_quest_completa()        │
+│ • /swagger-ui (Documentación OpenAPI)│  │   - obtener_progreso_usuario()    │
+│                                      │  │ • RLS Policies & Pgcrypto         │
+└──────────────────────────────────────┘  └───────────────────────────────────┘
 ```
 
-**Funcionalidades del MVP funcionando de punta a punta:**
-1. Autenticación local (registro/login, SHA-256, migraciones versionadas).
-2. Quest/Encuentro (múltiples encuentros ordenados, incluido un jefe).
-3. Combate por turnos (4 opciones por encuentro; `calidad` define crítico/normal/contraataque; al terminar se guarda la Partida y se actualiza el ProgresoUsuario).
-4. Pantalla Mi Progreso (consulta y volver a jugar).
-
-**Base de datos:** SQLite `sysquest.db`, esquema **versión 2**, 7 tablas: `usuario`, `personaje`, `progreso_usuario`, `quest`, `encuentro`, `opcion_encuentro`, `partida`. Diccionario completo y corregido en `V2SysQuest_Diccionario_de_Datos.md` (reemplaza al `.xlsx` desfasado). IDs `TEXT` (UUID v4); enumerados sin `CHECK`, validados en la app.
-
-### Reglas de negocio vigentes (`domain/usecases`)
-
-| Regla | Valor |
-|---|---|
-| Vida inicial del jugador | 100 (`Partida.vidaJugador`, no se guarda en BD) |
-| `calidad` 2 (crítico) | 25 de daño al enemigo |
-| `calidad` 1 (acierto) | 12 de daño al enemigo |
-| `calidad` 0 (fallo) | contraataque de 15 al jugador |
-| Encuentro `jefe` | crítico +10, acierto +5, contraataque 25 |
-| XP | victoria 50, derrota 10 |
-| Nivel | `1 + xpTotal ~/ 100` |
-| Contraseña mínima | 6 caracteres |
-
-La partida se inserta en BD **solo al terminar** (`guardarPartida`).
+### 3.1 Decisiones Técnicas Cerradas y Auditadas
+* **Flutter NUNCA llama a PostgreSQL directo:** Toda interacción pasa obligatoriamente por las Edge Functions de Supabase. Esto garantiza la separación estricta de capas impuesta en la revisión técnica.
+* **Liquidación y Puntaje Server-Side (Anti-Cheat):** El cliente Flutter reporta únicamente hechos auditables (`enemigos_derrotados`, `rondas_temerarias`, `racha_maxima`). La Edge Function `finalizar-partida` recalcula el score y la XP en el servidor impidiendo trampas de memoria.
+* **Persistencia de Estado de Combate:** La entidad `partida` persiste `vida_jugador_actual`, `vida_enemigo_actual`, `encuentro_actual` y `updated_at`. La vida del jugador se conserva durante toda la mazmorra; la del enemigo se reinicia por encuentro.
+* **Enum `fuente_generacion` Unificado:** Toda la pila (Base de datos, Deno, Flutter y documentación) maneja exactamente 3 valores: `AI`, `FALLBACK`, `DOCENTE`.
+* **Criptografía en Contraseñas:** El hash se delega al motor de Supabase Auth (bcrypt/argon2). Las contraseñas viajan seguras vía TLS 1.3 y no se almacenan hashes planos.
 
 ---
 
-## 3b. Hallazgos de la auditoría (24-sep-2026)
+## 4. Reglas de Negocio y Mecánicas de Juego Vigentes
 
-Estado: los marcados como hechos deben verificarse en el código antes de darlos por cerrados.
-
-- [ ] **Datos de prueba:** `enc-001` opción D y `enc-003` opción D tienen `calidad: 1` siendo incorrectas; deben ser 0.
-- [ ] **Orden de opciones:** `obtenerEncuentros` consulta `opcion_encuentro` sin `orderBy`; agregar `letra ASC`.
-- [ ] **`vida_enemigo`:** default SQL 50 vs respaldo 30 en `SqliteQuestRepository`; unificar. Además, `ResponderEncuentroUseCase` no la usa: revisar en la pantalla de combate cómo se descuenta.
-- [ ] **Llaves foráneas:** activar `PRAGMA foreign_keys = ON` vía `onConfigure`.
-- [ ] **Migración v1→v2:** usuarios previos quedan con `password_hash = ''` (no podrían iniciar sesión). Solo afecta datos viejos de prueba.
-- [ ] **`registrar`:** dos inserts (`usuario` + `progreso_usuario`) sin transacción.
-- [ ] **Contraseñas:** SHA-256 sin salt. Aceptable en el MVP local; cambiar a bcrypt/argon2 cuando llegue el backend.
-- [ ] **`personaje`:** tabla sin uso (ningún repositorio la lee ni escribe).
-- [ ] **`partida.resultado`** duplica `estado`; **`started_at`** no refleja el inicio real (la partida se guarda al terminar).
-- [ ] **`ProgresoUsuario`** (entidad) no expone `id_progreso` ni `updated_at`.
-
----
-
-## 4. Roadmap (no construido)
-
-**Siguiente hito (PROPUESTO, no implementado): generación de quests con IA**, respetando la arquitectura:
-1. Puerto en `domain/`: `QuestGeneratorRepository` con `generarQuest(String tema)`.
-2. Caso de uso `GenerarQuestUseCase`: valida que cada encuentro tenga exactamente 4 opciones (A–D) con **una sola** de `calidad` 2, al menos una de `calidad` 0, y usa el banco local de preguntas como respaldo si la IA falla.
-3. Adaptador en `infrastructure/`: primero uno falso/local para probar el flujo; después el real.
-4. Pantalla: campo de tema libre que llama al caso de uso.
-
-**Resto del roadmap:**
-- **Backend remoto:** híbrido SQLite (caché offline) + Supabase/PostgreSQL (cuentas sincronizadas, cosméticos, panel admin). La IA se llama **siempre vía backend**, nunca directo desde el celular (Gemini o Groq como opciones gratuitas evaluadas).
-- **Personajes:** 2-3 skins predefinidos por género (sin capas combinables).
-- **Multijugador local** (hotspot/Wi-Fi Direct): funcionalidad futura, separada del modo historia.
-- **Web informativa bilingüe + APK + panel admin institucional:** planeado para ~semana 14.
-- **Plataforma:** solo Android.
+| Regla de Juego | Implementación y Valor | Ubicación de la Lógica |
+| :--- | :--- | :--- |
+| **Vida Inicial del Héroe** | 100 HP | `domain/entities/partida.dart` |
+| **Opción Crítica (`calidad: 2`)** | +25 daño al enemigo (afectado por perks y racha) | `ResponderEncuentroUseCase` |
+| **Opción Acierto (`calidad: 1`)** | +12 daño al enemigo | `ResponderEncuentroUseCase` |
+| **Opción Fallo (`calidad: 0`)** | Contraataque de 15 daño al jugador | `ResponderEncuentroUseCase` |
+| **Encuentro con Jefe (`boss`)** | Crítico +10 daño, Acierto +5 daño, Contraataque 25 daño | `ResponderEncuentroUseCase` |
+| **Fórmula de Nivel** | `nivel = 1 + floor(xp_total / 100)` | Backend `finalizar-partida` + Dominio |
+| **Fórmula de Score** | `enemigos * 100 * mult + bono_racha + bono_victoria` | Server-Side en `finalizar-partida` |
+| **Sistema de Racha (Combo)** | 1.25x (Racha 3), 1.5x (Racha 5), 1.75x (Racha 7+) | `CombateController` + Validación |
+| **Sistema Riesgo/Recompensa** | Descanso Seguro (+25 HP) vs Pacto Temerario (-10 HP, +30% daño, +200 pts) | Evento inter-rondas validado en server |
+| **Comodines (Wildcards)** | 50/50 (oculta 2), Robo de vida (+10 HP), Golpe doble (2x daño), Pista | `CombateController` (1 uso inicial) |
+| **Perks Roguelite (15 Perks)** | Modificadores pasivos acumulables de daño, crítico, defensa y velocidad | `RoguelitePerk` en cliente |
+| **Timeout de IA y Fallback** | Límite estricto de 10s. Si falla, activa banco semilla | Edge Function `generar-quest` |
 
 ---
 
-## 5. Ecosistema de herramientas (estado verificado el 24-sep-2026)
+## 5. Ecosistema de Calidad, Pruebas y DevOps
 
-| Tarea | Herramienta |
-|---|---|
-| Escribir y modificar código Flutter/Dart | VS Code + GitHub Copilot Student |
-| Consultar el proyecto ("¿qué decidimos sobre X?") | NotebookLM (ahora llamado **Gemini Notebook**), cuaderno "SysQuest" |
-| Auditorías de conjunto e investigación de integraciones | Gemini web |
-| Web informativa y panel admin (fase futura, NO la app Flutter) | Antigravity |
-| Diseño, decisiones de arquitectura, revisión de código, documentos académicos | Claude (este chat) |
+### 5.1 Calidad de Código con SonarQube
+Ambos repositorios se encuentran auditados en la instancia local de SonarQube Community Edition:
+* **Frontend (`sysquest-frontend`):**
+  * **Quality Gate:** **PASSED (OK)**.
+  * **Bugs:** 0 | **Vulnerabilidades:** 0 | **Security Hotspots:** 0 | **Code Smells:** 0.
+  * **Cobertura (Coverage):** **>80%** en lógica de negocio (Dominio e Infraestructura), excluyendo vistas de presentación con `sonar.coverage.exclusions`.
+  * **Tests Unitarios e Integrados:** **185/185 pasando** (100% de éxito).
+* **Backend (`sysquest-backend`):**
+  * **Quality Gate:** **PASSED (OK)**.
+  * **Bugs:** 0 | **Vulnerabilidades:** 0 (todas las alertas de PRNG resueltas con `crypto.getRandomValues`).
+  * **Code Smells:** 0 (expresiones regulares optimizadas sin backtracking).
+  * **Líneas de Código:** 3,856 líneas en TypeScript y SQL.
 
-**Estado por herramienta:**
-- **GitHub Student:** verificado para Jhony el 21-sep-2026 (vigencia de ~2 años). Andrés debe verificar con su propia cuenta *(por confirmar)*.
-- **Copilot Student:** selección de modelo **solo en modo Auto** (sin selector manual, desde el 24-jun-2026). Incluye completado ilimitado, una asignación de créditos de GitHub AI y uso limitado de chat/agente. Ya existe `.github/copilot-instructions.md` en el proyecto.
-- **NotebookLM:** cuaderno con 5 fuentes (código domain/infra en .txt, informe V1.13, maestro, diccionario). **Regla:** eliminar/deseleccionar versiones viejas del maestro al subir una nueva; el resumen automático mezcló v1 y v2 y ya mostró datos falsos (Supabase como actual, 13 semanas).
-- **Antigravity:** plan individual gratuito con cuota semanal (recortada varias veces desde su lanzamiento; no depender de ella). El Gemini CLI dejó de servir cuentas individuales el 18-jun-2026; lo reemplaza el Antigravity CLI.
-- **Suscripción Gemini de 18 meses por $40.000 COP (revendedor):** **SIN VERIFICAR.** El anuncio promociona "Gemini 1.5 Pro" (desactualizado) y 5 TB (dato propio de una promoción estudiantil de EE. UU.). Acciones: revisar en one.google.com quién paga y qué plan aparece; si se entregó contraseña, cambiarla y activar verificación en dos pasos; no guardar ahí copias únicas. **Alternativa legítima:** Google AI Plus gratis 12 meses para estudiantes (140+ mercados, hasta 31-dic-2026, verificación SheerID, requiere método de pago y se renueva a pago: poner recordatorio). Solicitud en `gemini.google/students` con cuenta personal.
-- **Abandonado:** Claude Code vía OmniRoute (gateway gratuito). No retomar.
+### 5.2 Pruebas de Carga con Apache JMeter (v5.6.3)
+Plan de estrés formalizado en `tests/jmeter/sysquest_load_test.jmx` ejecutado contra el backend en la nube:
+* **Concurrencia:** 25 usuarios virtuales (hilos) en rampa de aceleración de 5 segundos.
+* **Muestreadores:** Swagger UI (entrega estática/gateway), OPTIONS Preflight (CORS), POST Login (validación defensiva).
+* **Métricas Obtenidas:**
+  * **Tasa de Error:** **0.00%** (30/30 transacciones exitosas sin caídas).
+  * **Latencia Mínima:** 88 ms.
+  * **Latencia Mediana:** 148 ms.
+  * **Latencia Promedio:** 312 ms.
+  * **Rendimiento:** 6.08 transacciones/segundo sostenidas.
+* **Dashboard HTML Generado:** Disponible en `tests/jmeter/reporte_html/index.html`.
 
----
-
-## 6. Modelo de negocio (Innovación y Emprendimiento)
-
-- Licenciamiento institucional a universidades (panel admin + contenido propio).
-- Cosméticos/skins ("juego gratis, cosméticos de pago").
-- Publicidad no intrusiva en la versión libre sin convenio institucional.
-- Todo se presenta como **hipótesis de negocio en validación**, nunca como mercado demostrado.
-
----
-
-## 7. Reglas de comunicación (para cualquier documento o presentación)
-
-1. No afirmar que SysQuest "resuelve" el problema del aprendizaje; es alternativa/complemento en exploración.
-2. Diferenciar **investigado** / **decidido y construido** / **futuro-hipotético**.
-3. Las entrevistas iniciales son evidencia cualitativa exploratoria, no validación estadística.
-4. El equipo de desarrollo son 2 personas, aunque el de emprendimiento sea de 4.
+### 5.3 Modelado de Procesos de Negocio en Bizagi (BPMN 2.0)
+Documentado en `tests/jmeter/DOCUMENTACION_PRUEBAS_CARGA.md` con los 3 flujos clave:
+1. **Proceso 1:** Autenticación de Estudiante y Carga de Perfil/Progreso.
+2. **Proceso 2:** Generación Procedural con Inteligencia Artificial y Fallback de Contingencia.
+3. **Proceso 3:** Ciclo de Combate Roguelite y Liquidación Segura Anti-trampas.
 
 ---
 
-## 8. Protocolo de continuidad (cómo trabajamos)
+## 6. Estado Actual del Repositorio y Flujo Git
 
-**Ciclo por tarea:** (1) diseño en el chat con Claude → (2) implementación en VS Code con Copilot usando ese diseño → (3) revisión en el chat pegando el `git diff` → (4) commit pequeño → (5) actualizar `ESTADO_ACTUAL.md` y, si cambió una decisión, este documento.
+* **Estrategia de Ramas:**
+  `feature/SYSQ-XX-descripcion` ➡️ `dev` ➡️ `preprod` ➡️ `main`
+* **Regla de Integración:** Ningún commit directo a `main`. Todo avance se fusiona mediante Pull Requests revisados entre Jhony y Andrés.
+* **Manejo de Secretos:** Variables de entorno y llaves sensibles (`SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`) almacenadas fuera del control de versiones mediante `supabase secrets`.
 
-**Fuentes de verdad, en orden:** código en GitHub → este documento → `ESTADO_ACTUAL.md` → NotebookLM (solo consulta) → chats (no son fuente).
+---
 
-**Arrancar un chat nuevo:** pegar este documento y `ESTADO_ACTUAL.md` como texto (nunca PDFs ni capturas, por el límite de imágenes por mensaje) y, si hace falta, el `codigo_domain_infra.txt` generado por `tools/exportar_contexto.ps1`. Decir al final qué se quiere hacer.
+## 7. Protocolo de Continuidad para Sesiones de Trabajo
 
-**Regla de decisiones:** toda decisión que cambie el rumbo se anota en la bitácora de `ESTADO_ACTUAL.md` con fecha y motivo, para no discutirla dos veces.
+1. **Orden de Verdad:**
+   1. Código fuente en GitHub (`dev` / `main`).
+   2. Este documento (`SysQuest_Contexto_Maestro_v3.md`).
+   3. Bitácora viva en `ESTADO_ACTUAL.md`.
+   4. NotebookLM (Gemini Notebook) como fuente pasiva de consulta.
+2. **Al arrancar un chat nuevo:** Pegar este documento junto con `ESTADO_ACTUAL.md` para situar al agente inmediatamente en el estado exacto del proyecto sin alucinaciones ni reinicios de contexto.
 
-*Fin del documento. Es la fuente única de verdad: actualízalo cuando cambie el alcance o una decisión técnica.*
+---
+*SysQuest — Ingeniería de Software I — Universidad de Cundinamarca.*

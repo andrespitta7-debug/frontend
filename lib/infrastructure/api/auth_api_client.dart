@@ -198,6 +198,7 @@ class AuthApiClient {
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $anonKey',
+      'apikey': anonKey,
     };
 
     final http.Response response;
