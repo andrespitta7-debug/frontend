@@ -1,94 +1,153 @@
-version: '3.8'
+# ==============================================================================
+# SysQuest - Microservicios Docker Compose (Producción & Desarrollo Local)
+# Arquitectura: Flutter Web (Nginx) + Kong Gateway + GoTrue + PostgREST + PostgreSQL
+# Estándar: Compose v2 Specification (sin directiva 'version' obsoleta)
+# ==============================================================================
 
 services:
-  # ========================================================
-  # 1. FRONTEND: Aplicación Flutter Web servida con Nginx
-  # ========================================================
+  # ============================================================================
+  # 1. FRONTEND: Aplicación Flutter Web servida mediante Nginx ultraliviano
+  # ============================================================================
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        - SUPABASE_URL=${SUPABASE_URL:-http://localhost:54321}
-        - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
-    container_name: sysquest_frontend
+        - SUPABASE_URL=${PUBLIC_API_URL:-http://localhost:54321}
+        - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:?Error: SUPABASE_ANON_KEY es obligatoria}
     ports:
-      - "8080:8080"
+      - "${FRONTEND_PORT:-8080}:8080"
     restart: unless-stopped
     depends_on:
-      - kong
+      kong:
+        condition: service_healthy
     networks:
       - sysquest_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ========================================================
-  # 2. BASE DE DATOS: PostgreSQL 15 con extensiones de Supabase
-  # ========================================================
+  # ============================================================================
+  # 2. BASE DE DATOS: PostgreSQL 15 con extensiones y schema de Supabase
+  # ============================================================================
   db:
     image: public.ecr.aws/supabase/postgres:15.1.0.147
-    container_name: sysquest_postgres_db
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatoria}
       POSTGRES_DB: postgres
+    # Enlace exclusivo a localhost para evitar exposición a redes externas
     ports:
-      - "54322:5432"
+      - "127.0.0.1:${DB_PORT:-54322}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - sysquest_network
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ========================================================
-  # 3. AUTENTICACIÓN: Supabase Auth (GoTrue - Tokens JWT)
-  # ========================================================
+  # ============================================================================
+  # 3. AUTENTICACIÓN: Supabase Auth (GoTrue - Tokens JWT RFC 7519)
+  # ============================================================================
   auth:
     image: public.ecr.aws/supabase/gotrue:v2.130.0
-    container_name: sysquest_auth_gotrue
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: ${SUPABASE_URL:-http://localhost:54321}/auth/v1
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:54321/auth/v1}
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres?sslmode=disable
-      GOTRUE_SITE_URL: http://localhost:8080
-      GOTRUE_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
-      GOTRUE_JWT_EXP: 3600
-      GOTRUE_DISABLE_SIGNUP: false
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:8080}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:?Error: JWT_SECRET con minimo 32 caracteres es obligatoria}
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_DISABLE_SIGNUP: ${GOTRUE_DISABLE_SIGNUP:-false}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     networks:
       - sysquest_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ========================================================
-  # 4. REST API: PostgREST (Convierte PostgreSQL a OpenAPI/REST)
-  # ========================================================
+  # ============================================================================
+  # 4. REST API: PostgREST (Convierte PostgreSQL a OpenAPI/REST con RLS)
+  # ============================================================================
   rest:
     image: public.ecr.aws/supabase/postgrest:v11.2.0
-    container_name: sysquest_rest_postgrest
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres?sslmode=disable
-      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
+      PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_JWT_SECRET: ${JWT_SECRET:?Error: JWT_SECRET con minimo 32 caracteres es obligatoria}
       PGRST_DB_USE_BUILTIN_AUTH: false
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     networks:
       - sysquest_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ========================================================
-  # 5. API GATEWAY: Kong (Enrutador inverso unificado)
-  # ========================================================
+  # ============================================================================
+  # 5. API GATEWAY: Kong (Enrutador inverso unificado y control de acceso)
+  # ============================================================================
   kong:
     image: public.ecr.aws/supabase/kong:2.8.1
-    container_name: sysquest_kong_gateway
     depends_on:
-      - auth
-      - rest
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
     ports:
-      - "54321:8000"
+      - "127.0.0.1:${KONG_PORT:-54321}:8000"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
@@ -97,8 +156,23 @@ services:
     volumes:
       - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - sysquest_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   sysquest_network:
@@ -106,3 +180,4 @@ networks:
 
 volumes:
   pgdata:
+    driver: local

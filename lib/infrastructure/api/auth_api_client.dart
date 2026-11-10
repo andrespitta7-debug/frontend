@@ -180,10 +180,9 @@ class AuthApiClient {
 
     String mensaje = 'Error en la solicitud.';
     try {
-      final Map<String, dynamic> data =
-          jsonDecode(response.body) as Map<String, dynamic>;
-      if (data['error'] is String) {
-        mensaje = data['error'] as String;
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded['error'] != null) {
+        mensaje = decoded['error'].toString();
       }
     } catch (_) {}
     throw ApiException(mensaje, statusCode: statusCode);
@@ -219,8 +218,10 @@ class AuthApiClient {
     // 4. Éxito: 200 OK o 201 Created
     if (statusCode == 200 || statusCode == 201) {
       try {
-        final Map<String, dynamic> data =
-            jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = jsonDecode(response.body);
+        final Map<String, dynamic> data = decoded is Map<String, dynamic>
+            ? decoded
+            : Map<String, dynamic>.from(decoded as Map);
         return AuthApiResult.fromJson(data);
       } catch (_) {
         throw ApiException(
@@ -237,10 +238,9 @@ class AuthApiClient {
         statusCode == 409) {
       String mensaje = 'Error en la solicitud.';
       try {
-        final Map<String, dynamic> data =
-            jsonDecode(response.body) as Map<String, dynamic>;
-        if (data['error'] is String) {
-          mensaje = data['error'] as String;
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['error'] != null) {
+          mensaje = decoded['error'].toString();
         }
       } catch (_) {
         // En caso de que el cuerpo no sea JSON válido
